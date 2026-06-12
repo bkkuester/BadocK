@@ -1,0 +1,9 @@
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.badock/*.sqlite
+.badock/*.sqlite-*
+.env
+.env.*
+!.env.example

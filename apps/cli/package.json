@@ -1,0 +1,27 @@
+{
+  "name": "@badock/cli",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "private": true,
+  "bin": {
+    "badock": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "badock": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm typecheck && pnpm test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --no-warnings --test \"dist/**/*.test.js\""
+  },
+  "dependencies": {
+    "@badock/config": "workspace:*",
+    "@badock/core": "workspace:*",
+    "@badock/storage": "workspace:*"
+  }
+}

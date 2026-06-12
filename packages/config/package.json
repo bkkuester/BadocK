@@ -1,0 +1,21 @@
+{
+  "name": "@badock/config",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm typecheck && pnpm test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --no-warnings --test \"dist/**/*.test.js\""
+  },
+  "dependencies": {
+    "zod": "3.25.64"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "project": {
+    "name": "BadocK",
+    "description": "Local-first ADOC MVP",
+    "root": "."
+  },
+  "stack": {
+    "language": "TypeScript",
+    "runtime": "Node.js",
+    "packageManager": "pnpm",
+    "frameworks": []
+  },
+  "providers": [
+    {
+      "id": "mock",
+      "type": "mock",
+      "defaultModel": "mock-planner"
+    }
+  ],
+  "agents": [
+    {
+      "id": "architecture-agent",
+      "role": "architecture",
+      "provider": "mock",
+      "model": "mock-planner",
+      "permissionMode": "manual"
+    }
+  ],
+  "permissions": {
+    "defaultMode": "manual",
+    "allowCommands": ["pnpm check", "pnpm test"],
+    "sensitiveFiles": [".env", ".env.*"],
+    "allowNetwork": false
+  }
+}

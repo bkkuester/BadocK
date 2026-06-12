@@ -1,10 +1,10 @@
-# AGENTS.md — BadocK Agent Operating Context
+# AGENTS.md - BadocK Agent Operating Context
 
 This file is mandatory reading for every agent before planning, editing, reviewing, or creating issues/PRs in BadocK.
 
 BadocK is the official project name. `Environment` is legacy terminology and must be treated only as historical reference.
 
-## Product identity
+## Product Identity
 
 BadocK means:
 
@@ -18,17 +18,17 @@ Short definition: BadocK is a command center for multi-agent development.
 
 BadocK is not an IDE in the MVP. The MVP must behave as an operational command center. A desktop app, workbench and IDE can exist later.
 
-## Mandatory core flow
+## Mandatory Core Flow
 
 Every feature, workflow, issue, run, test, report and PR must preserve this flow:
 
 ```txt
-Issue → plano → agente → worktree → diff → review → custo → PR
+Issue -> plano -> agente -> worktree -> diff -> review -> custo -> PR
 ```
 
 If a proposal does not strengthen this flow, it does not belong in the MVP.
 
-## Repository and documentation sources
+## Repository And Documentation Sources
 
 Primary documentation pack:
 
@@ -42,41 +42,43 @@ Primary documentation pack:
 
 Notion is the project documentation hub. Every relevant decision, issue, architecture change, risk, run summary and as-built record must be documented there as well.
 
-## MVP scope
+## MVP Scope
 
 The MVP must prove the smallest useful vertical flow:
 
 ```txt
-abrir projeto → detectar stack básica → criar/melhorar issue → selecionar agente/modelo/permissões → executar em branch/worktree isolado → capturar logs/diff → revisar → registrar custo estimado → preparar/criar PR
+abrir projeto -> detectar stack basica -> criar/melhorar issue -> selecionar agente/modelo/permissoes -> executar em branch/worktree isolado -> capturar logs/diff -> revisar -> registrar custo estimado -> preparar/criar PR
 ```
 
 MVP modules:
 
-- Project Scanner básico;
-- Stack Profiler básico;
+- Project Scanner basico;
+- Stack Profiler basico;
 - Issue Manager local;
 - Agent Runtime Adapter inicial;
 - Worktree Manager;
 - Run Orchestrator;
-- Diff/Review básico;
+- Diff/Review basico;
 - GitHub Sync parcial;
-- Cost Tracker básico;
-- logs e relatório final.
+- Cost Tracker basico;
+- logs e relatorio final.
 
 Out of MVP:
 
-- IDE completa ou editor avançado;
-- execução paralela complexa;
+- IDE completa ou editor avancado;
+- execucao paralela complexa;
 - suporte completo a todos os providers;
 - marketplace de modelos;
 - telemetria perfeita por agente;
-- merge automático;
-- permissões enterprise;
+- merge automatico;
+- permissoes enterprise;
 - plugin system;
 - gerenciamento sofisticado de LLMs locais;
 - UI polida antes do core funcionar.
 
-## Development order
+The current repository implementation is CLI-first and includes only the foundational TypeScript packages, manifest validation and local SQLite storage.
+
+## Development Order
 
 Do not invert this order without a strong reason documented in Notion:
 
@@ -85,15 +87,15 @@ Do not invert this order without a strong reason documented in Notion:
 3. Scanner de stack;
 4. Issue Manager;
 5. Agent Runtime Adapter;
-6. Execução isolada;
-7. Logs, diff e relatório;
+6. Execucao isolada;
+7. Logs, diff e relatorio;
 8. GitHub Sync parcial;
 9. Cost Tracker;
 10. UI simples;
 11. Desktop app;
 12. IDE/workbench completa.
 
-## Core conceptual modules
+## Core Conceptual Modules
 
 BadocK evolves around:
 
@@ -111,11 +113,11 @@ BadocK evolves around:
 - Local Telemetry;
 - Memory/Context Store.
 
-## Permission model
+## Permission Model
 
 Permissions are central product behavior, not a detail.
 
-### Manual mode
+### Manual Mode
 
 - read files: allowed;
 - edit files: ask;
@@ -124,7 +126,7 @@ Permissions are central product behavior, not a detail.
 - push: ask;
 - open PR: ask.
 
-### Supervised mode
+### Supervised Mode
 
 - read files: allowed;
 - edit files inside scope: allowed;
@@ -133,7 +135,7 @@ Permissions are central product behavior, not a detail.
 - alter `.env`, config or secrets: ask;
 - commit, push, PR: ask.
 
-### Autonomous mode
+### Autonomous Mode
 
 - read files: allowed;
 - edit files: allowed;
@@ -142,7 +144,7 @@ Permissions are central product behavior, not a detail.
 
 Execution on `main` must only happen by explicit user request. Default execution is branch/worktree isolated by issue/run.
 
-## Sensitive actions
+## Sensitive Actions
 
 The following actions require confirmation or explicit permission:
 
@@ -162,7 +164,7 @@ Never store API keys in a versioned manifest. Never expose full keys in logs or 
 
 Logs must mask secrets.
 
-## Cost and telemetry
+## Cost And Telemetry
 
 BadocK must register usage by project, run, issue, agent, provider and model.
 
@@ -181,7 +183,7 @@ Useful states:
 - `failed`;
 - `needs_user_decision`.
 
-## Memory/context separation
+## Memory/Context Separation
 
 Do not collapse all context into one blob. Use:
 
@@ -192,25 +194,29 @@ Do not collapse all context into one blob. Use:
 
 Do not invent repository state. If files, logs, changelog or command outputs exist, inspect them before proposing changes.
 
-## Issue format
+## Issue Format
 
 Use this standard:
 
 ```md
-Título(feature):
+Titulo(feature):
 Objetivo:
 Escopo:
 Agente(s) sugerido(s):
-Critérios de aceite:
-Observações técnicas:
-Arquivos: somente se realmente necessário
+Criterios de aceite:
+Observacoes tecnicas:
+Arquivos: somente se realmente necessario
 ```
 
 A good issue has clear objective, limited scope, verifiable acceptance criteria, suggested agents, useful technical notes and objective validation.
 
 Do not mix multiple large features without need.
 
-## Definition of Done
+## Codex Context Rule
+
+Before implementation, collect repository context, current branch, dirty worktree state and relevant docs. A context request must not authorize implementation before that repo survey is complete.
+
+## Definition Of Done
 
 An issue is solved when:
 
@@ -221,7 +227,7 @@ An issue is solved when:
 - diff was approved by the user or by explicit rule;
 - PR was created or branch is ready.
 
-## Implementation gate
+## Implementation Gate
 
 Every technical suggestion must directly help BadocK as an ADOC, avoid unnecessary scope, preserve traceability, protect secrets, respect permissions, and include verifiable acceptance criteria.
 
