@@ -36,12 +36,37 @@ describe("BadockStorage", () => {
         id: "issue-1",
         projectId: project.id,
         title: "Create scaffold",
-        objective: "Create the first BadocK scaffold"
+        objective: "Create the first BadocK scaffold",
+        scope: ["Core storage"],
+        suggestedAgents: ["backend-agent"],
+        acceptanceCriteria: ["Issue is persisted"],
+        technicalNotes: "No GitHub sync yet",
+        files: ["packages/storage/src/index.ts"]
+      });
+      const updatedIssue = storage.updateIssue(issue.id, {
+        state: "planned",
+        acceptanceCriteria: ["Issue is persisted", "Issue can be edited"]
       });
       const run = storage.createRun({
         id: "run-1",
         projectId: project.id,
         issueId: issue.id
+      });
+      const profile = storage.saveStackProfile({
+        id: "profile-1",
+        projectId: project.id,
+        profile: { language: "typescript", packageManager: "pnpm" }
+      });
+      const plan = storage.createRunPlan({
+        id: "plan-1",
+        projectId: project.id,
+        issueId: issue.id,
+        objective: issue.objective,
+        scope: issue.scope,
+        candidateFiles: issue.files,
+        suggestedValidations: ["Review acceptance criterion: Issue is persisted"],
+        risks: ["RunPlan requires manual review before execution"],
+        acceptanceCriteria: updatedIssue.acceptanceCriteria
       });
       const log = storage.appendRunLog({
         id: "log-1",
@@ -66,7 +91,15 @@ describe("BadockStorage", () => {
 
       assert.equal(storage.getProject(project.id)?.name, "Example");
       assert.equal(storage.getIssue(issue.id)?.title, "Create scaffold");
+      assert.equal(storage.getIssue(issue.id)?.state, "planned");
+      assert.deepEqual(storage.getIssue(issue.id)?.acceptanceCriteria, ["Issue is persisted", "Issue can be edited"]);
+      assert.equal(storage.listIssues(project.id).length, 1);
       assert.equal(storage.getRun(run.id)?.status, "planned");
+      assert.deepEqual(storage.getLatestStackProfile(project.id), profile);
+      assert.deepEqual(storage.getRunPlan(plan.id), plan);
+      assert.equal(storage.getRunPlan(plan.id)?.requiresManualReview, true);
+      assert.equal(storage.getRunPlan(plan.id)?.executionAuthorized, false);
+      assert.equal(storage.listRunPlans(issue.id).length, 1);
       assert.deepEqual(storage.listRunLogs(run.id), [log]);
       assert.equal(storage.listCostRecords(run.id).length, 1);
       assert.equal(storage.listDecisions(run.id).length, 1);

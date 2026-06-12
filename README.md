@@ -47,9 +47,20 @@ pnpm check
 pnpm test
 pnpm build
 pnpm --filter @badock/cli badock health
+pnpm --filter @badock/cli badock project scan .
+pnpm --filter @badock/cli badock project profile .
 pnpm --filter @badock/cli badock manifest validate .badock/project.example.json
 pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
+pnpm --filter @badock/cli badock issue create .badock/badock.sqlite --project <project-id> --title <title> --objective <objective> --scope <scope> --agent <agent-id> --acceptance <criterion>
+pnpm --filter @badock/cli badock issue list .badock/badock.sqlite
+pnpm --filter @badock/cli badock issue view .badock/badock.sqlite <issue-id>
+pnpm --filter @badock/cli badock issue update .badock/badock.sqlite <issue-id> --state planned
+pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id>
 ```
+
+`project scan` and `project profile` only read files and Git metadata. They do not execute project scripts.
+
+Local issues and run plans are stored in SQLite so the MVP can proceed without GitHub. A generated run plan always requires manual review and does not authorize execution by itself.
 
 ## MVP Non-Goals
 
@@ -66,4 +77,4 @@ pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
 
 ## Status
 
-Repository initialized as the BadocK canonical project. `Environment` remains legacy/reference material only.
+Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management and persisted run-plan generation. `Environment` remains legacy/reference material only.
