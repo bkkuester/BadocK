@@ -51,16 +51,22 @@ pnpm --filter @badock/cli badock project scan .
 pnpm --filter @badock/cli badock project profile .
 pnpm --filter @badock/cli badock manifest validate .badock/project.example.json
 pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
+pnpm --filter @badock/cli badock provider register .badock/badock.sqlite --project <project-id> --id mock --type mock --default-model mock-planner
+pnpm --filter @badock/cli badock provider list .badock/badock.sqlite --project <project-id>
+pnpm --filter @badock/cli badock agent register .badock/badock.sqlite --project <project-id> --id backend-agent --role backend --provider mock --model mock-planner --permission manual
+pnpm --filter @badock/cli badock agent list .badock/badock.sqlite --project <project-id>
 pnpm --filter @badock/cli badock issue create .badock/badock.sqlite --project <project-id> --title <title> --objective <objective> --scope <scope> --agent <agent-id> --acceptance <criterion>
 pnpm --filter @badock/cli badock issue list .badock/badock.sqlite
 pnpm --filter @badock/cli badock issue view .badock/badock.sqlite <issue-id>
 pnpm --filter @badock/cli badock issue update .badock/badock.sqlite <issue-id> --state planned
-pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id>
+pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id> --agent <agent-id>
 ```
 
 `project scan` and `project profile` only read files and Git metadata. They do not execute project scripts.
 
-Local issues and run plans are stored in SQLite so the MVP can proceed without GitHub. A generated run plan always requires manual review and does not authorize execution by itself.
+Local providers, agents, issues and run plans are stored in SQLite so the MVP can proceed without GitHub. A generated run plan always requires manual review and does not authorize execution by itself.
+
+Provider secrets are not stored in the manifest or local provider registry. Agents select providers through the Provider Gateway, which exposes only public provider/model metadata and sanitized errors.
 
 ## MVP Non-Goals
 
@@ -77,4 +83,4 @@ Local issues and run plans are stored in SQLite so the MVP can proceed without G
 
 ## Status
 
-Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management and persisted run-plan generation. `Environment` remains legacy/reference material only.
+Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management, provider/agent registry primitives, permission-aware run planning and persisted run-plan generation. `Environment` remains legacy/reference material only.

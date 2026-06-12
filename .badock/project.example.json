@@ -15,7 +15,10 @@
     {
       "id": "mock",
       "type": "mock",
-      "defaultModel": "mock-planner"
+      "defaultModel": "mock-planner",
+      "parameters": {
+        "temperature": 0
+      }
     }
   ],
   "agents": [
@@ -24,7 +27,8 @@
       "role": "architecture",
       "provider": "mock",
       "model": "mock-planner",
-      "permissionMode": "manual"
+      "permissionMode": "manual",
+      "capabilities": ["plan", "review"]
     }
   ],
   "permissions": {

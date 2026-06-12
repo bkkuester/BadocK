@@ -1,5 +1,12 @@
 import type { NormalizedLocalIssue } from "./issues";
 import type { StackProfile, ValidationScript } from "./project";
+import {
+  type AgentProfile,
+  type AgentSelection,
+  selectAgentForRun,
+  suggestAgentForIssue
+} from "./agents";
+import type { ProviderPublicConfig } from "./provider";
 
 export type RunPlan = {
   projectId: string;
@@ -10,8 +17,18 @@ export type RunPlan = {
   suggestedValidations: string[];
   risks: string[];
   acceptanceCriteria: string[];
+  agentSelection: AgentSelection | null;
+  providerMetadata: RunPlanProviderMetadata | null;
   requiresManualReview: true;
   executionAuthorized: false;
+};
+
+export type RunPlanProviderMetadata = {
+  providerId: string;
+  providerType: ProviderPublicConfig["type"] | "unknown";
+  model: string;
+  permissionMode: AgentSelection["permissionMode"];
+  costTrackingReady: boolean;
 };
 
 export type GenerateRunPlanInput = {
@@ -21,11 +38,17 @@ export type GenerateRunPlanInput = {
     NormalizedLocalIssue,
     "title" | "objective" | "scope" | "suggestedAgents" | "acceptanceCriteria" | "files"
   >;
-  stackProfile?: Pick<StackProfile, "validationScripts">;
+  stackProfile?: Pick<StackProfile, "validationScripts"> &
+    Partial<Pick<StackProfile, "language" | "runtime" | "packageManager">>;
+  agents?: AgentProfile[];
+  providers?: ProviderPublicConfig[];
+  selectedAgentId?: string;
 };
 
 export function generateRunPlan(input: GenerateRunPlanInput): RunPlan {
   const suggestedValidations = buildSuggestedValidations(input.issue.acceptanceCriteria, input.stackProfile);
+  const agentSelection = resolveAgentSelection(input);
+  const providerMetadata = agentSelection ? buildProviderMetadata(agentSelection, input.providers ?? []) : null;
 
   return {
     projectId: input.projectId,
@@ -34,8 +57,10 @@ export function generateRunPlan(input: GenerateRunPlanInput): RunPlan {
     scope: input.issue.scope,
     candidateFiles: input.issue.files,
     suggestedValidations,
-    risks: buildRisks(input.issue, suggestedValidations),
+    risks: buildRisks(input.issue, suggestedValidations, agentSelection, input.selectedAgentId),
     acceptanceCriteria: input.issue.acceptanceCriteria,
+    agentSelection,
+    providerMetadata,
     requiresManualReview: true,
     executionAuthorized: false
   };
@@ -56,7 +81,9 @@ function formatValidationScript(script: ValidationScript): string {
 
 function buildRisks(
   issue: Pick<NormalizedLocalIssue, "suggestedAgents" | "files">,
-  suggestedValidations: string[]
+  suggestedValidations: string[],
+  agentSelection: AgentSelection | null,
+  selectedAgentId: string | undefined
 ): string[] {
   const risks: string[] = ["RunPlan requires manual review before execution"];
 
@@ -64,8 +91,12 @@ function buildRisks(
     risks.push("Issue does not name candidate files");
   }
 
-  if (issue.suggestedAgents.length === 0) {
+  if (issue.suggestedAgents.length === 0 && !agentSelection) {
     risks.push("Issue does not name suggested agents");
+  }
+
+  if (agentSelection?.source === "suggested" && !selectedAgentId) {
+    risks.push("Agent selection is an editable suggestion and must be confirmed before execution");
   }
 
   if (suggestedValidations.length === 0) {
@@ -73,4 +104,38 @@ function buildRisks(
   }
 
   return risks;
+}
+
+function resolveAgentSelection(input: GenerateRunPlanInput): AgentSelection | null {
+  const agents = input.agents ?? [];
+  const providers = input.providers ?? [];
+
+  if (input.selectedAgentId) {
+    return selectAgentForRun({
+      agentId: input.selectedAgentId,
+      agents,
+      providers
+    });
+  }
+
+  return suggestAgentForIssue({
+    issue: input.issue,
+    agents,
+    providers: providers.length > 0 ? providers : undefined,
+    stackProfile: input.stackProfile
+  });
+}
+
+function buildProviderMetadata(
+  agentSelection: AgentSelection,
+  providers: ProviderPublicConfig[]
+): RunPlanProviderMetadata {
+  const provider = providers.find((candidate) => candidate.id === agentSelection.providerId);
+  return {
+    providerId: agentSelection.providerId,
+    providerType: provider?.type ?? "unknown",
+    model: agentSelection.model,
+    permissionMode: agentSelection.permissionMode,
+    costTrackingReady: Boolean(provider)
+  };
 }

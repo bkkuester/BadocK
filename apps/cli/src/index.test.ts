@@ -60,6 +60,35 @@ describe("runBadockCli", () => {
     });
   });
 
+  it("resolves relative paths from the original pnpm invocation cwd", async () => {
+    const dir = tempDir();
+    const previousInitCwd = process.env.INIT_CWD;
+    writeFileSync(
+      join(dir, "project.json"),
+      JSON.stringify({
+        version: 1,
+        project: { name: "Example" },
+        permissions: { defaultMode: "manual" }
+      })
+    );
+
+    try {
+      process.env.INIT_CWD = dir;
+      const result = await runBadockCli(["manifest", "validate", "project.json"]);
+
+      assert.deepEqual(result, {
+        exitCode: 0,
+        output: 'Manifest valid for project "Example"'
+      });
+    } finally {
+      if (previousInitCwd === undefined) {
+        delete process.env.INIT_CWD;
+      } else {
+        process.env.INIT_CWD = previousInitCwd;
+      }
+    }
+  });
+
   it("initializes local SQLite storage", async () => {
     const dbPath = join(tempDir(), ".badock", "badock.sqlite");
 
@@ -139,6 +168,83 @@ describe("runBadockCli", () => {
     ]);
   });
 
+  it("registers local providers and agents", async () => {
+    const dbPath = join(tempDir(), ".badock", "badock.sqlite");
+    const storage = createBadockStorage(dbPath);
+    storage.createProject({ id: "project-1", name: "Example", rootPath: "C:/repo" });
+    storage.close();
+
+    const provider = await runBadockCli([
+      "provider",
+      "register",
+      dbPath,
+      "--project",
+      "project-1",
+      "--id",
+      "mock",
+      "--type",
+      "mock",
+      "--default-model",
+      "mock-planner",
+      "--param",
+      "temperature=0"
+    ]);
+    const agent = await runBadockCli([
+      "agent",
+      "register",
+      dbPath,
+      "--project",
+      "project-1",
+      "--id",
+      "backend-agent",
+      "--role",
+      "backend",
+      "--provider",
+      "mock",
+      "--model",
+      "mock-planner",
+      "--permission",
+      "manual",
+      "--capability",
+      "plan"
+    ]);
+    const providers = await runBadockCli(["provider", "list", dbPath, "--project", "project-1"]);
+    const agents = await runBadockCli(["agent", "list", dbPath, "--project", "project-1"]);
+
+    assert.equal(provider.exitCode, 0);
+    assert.equal(JSON.parse(provider.output ?? "{}").parameters.temperature, 0);
+    assert.equal(agent.exitCode, 0);
+    assert.equal(JSON.parse(agent.output ?? "{}").providerId, "mock");
+    assert.equal(JSON.parse(providers.output ?? "[]").length, 1);
+    assert.equal(JSON.parse(agents.output ?? "[]").length, 1);
+  });
+
+  it("rejects registering an agent without a configured provider", async () => {
+    const dbPath = join(tempDir(), ".badock", "badock.sqlite");
+    const storage = createBadockStorage(dbPath);
+    storage.createProject({ id: "project-1", name: "Example", rootPath: "C:/repo" });
+    storage.close();
+
+    const result = await runBadockCli([
+      "agent",
+      "register",
+      dbPath,
+      "--project",
+      "project-1",
+      "--id",
+      "backend-agent",
+      "--role",
+      "backend",
+      "--provider",
+      "missing",
+      "--model",
+      "mock-planner"
+    ]);
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.error ?? "", /Provider not found/);
+  });
+
   it("rejects invalid local issue creation", async () => {
     const dbPath = join(tempDir(), ".badock", "badock.sqlite");
     const storage = createBadockStorage(dbPath);
@@ -166,6 +272,20 @@ describe("runBadockCli", () => {
     const dbPath = join(dir, ".badock", "badock.sqlite");
     const storage = createBadockStorage(dbPath);
     const project = storage.createProject({ id: "project-1", name: "Example", rootPath: dir });
+    storage.registerProviderProfile({
+      id: "mock",
+      projectId: project.id,
+      type: "mock",
+      defaultModel: "mock-planner"
+    });
+    storage.registerAgentProfile({
+      id: "stack-agent",
+      projectId: project.id,
+      role: "backend",
+      providerId: "mock",
+      model: "mock-planner",
+      permissionMode: "manual"
+    });
     const issue = storage.createIssue({
       id: "issue-1",
       projectId: project.id,
@@ -178,13 +298,15 @@ describe("runBadockCli", () => {
     });
     storage.close();
 
-    const result = await runBadockCli(["plan", "create", dbPath, issue.id]);
+    const result = await runBadockCli(["plan", "create", dbPath, issue.id, "--agent", "stack-agent"]);
 
     assert.equal(result.exitCode, 0);
     const plan = JSON.parse(result.output ?? "{}");
     assert.equal(plan.issueId, issue.id);
     assert.equal(plan.requiresManualReview, true);
     assert.equal(plan.executionAuthorized, false);
+    assert.equal(plan.agentSelection.agentId, "stack-agent");
+    assert.equal(plan.providerMetadata.providerId, "mock");
     assert.deepEqual(plan.acceptanceCriteria, ["Scanner is deterministic"]);
   });
 });

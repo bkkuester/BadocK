@@ -21,3 +21,7 @@ export function getBadockHealth(): BadockHealth {
 export * from "./issues";
 export * from "./project";
 export * from "./run-plan";
+export * from "./security";
+export * from "./provider";
+export * from "./permissions";
+export * from "./agents";

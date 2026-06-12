@@ -5,9 +5,16 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
   createStackProfile,
+  evaluatePermission,
   generateRunPlan,
   getBadockHealth,
+  MemoryProviderSecretStore,
   normalizeLocalIssueInput,
+  ProviderGateway,
+  ProviderGatewayError,
+  sanitizeForPublicOutput,
+  sanitizeSensitiveText,
+  selectAgentForRun,
   scanProject
 } from "./index";
 
@@ -227,5 +234,232 @@ describe("local issue and run plan contracts", () => {
     assert.deepEqual(plan.candidateFiles, ["packages/core/src/project.ts"]);
     assert.match(plan.suggestedValidations.join("\n"), /Scanner is deterministic/);
     assert.match(plan.suggestedValidations.join("\n"), /test/);
+  });
+
+  it("records editable agent selection and provider metadata in RunPlan", () => {
+    const issue = normalizeLocalIssueInput({
+      title: "Implement provider gateway",
+      objective: "Route model calls through a gateway",
+      scope: ["Provider Gateway"],
+      suggestedAgents: ["provider-agent"],
+      acceptanceCriteria: ["Provider is selected"],
+      files: ["packages/core/src/provider.ts"]
+    });
+
+    const plan = generateRunPlan({
+      projectId: "project-1",
+      issueId: "issue-1",
+      issue,
+      selectedAgentId: "provider-agent",
+      agents: [
+        {
+          id: "provider-agent",
+          role: "provider",
+          providerId: "mock",
+          model: "mock-planner",
+          permissionMode: "manual",
+          capabilities: ["plan"]
+        }
+      ],
+      providers: [{ id: "mock", type: "mock", defaultModel: "mock-planner" }]
+    });
+
+    assert.equal(plan.agentSelection?.agentId, "provider-agent");
+    assert.equal(plan.agentSelection?.source, "manual");
+    assert.equal(plan.providerMetadata?.providerId, "mock");
+    assert.equal(plan.providerMetadata?.costTrackingReady, true);
+  });
+
+  it("does not mark cost tracking ready when provider metadata is missing", () => {
+    const issue = normalizeLocalIssueInput({
+      title: "Suggest backend agent",
+      objective: "Prepare a plan",
+      scope: ["Run Orchestrator"],
+      suggestedAgents: ["backend-agent"],
+      acceptanceCriteria: ["Agent suggestion is editable"]
+    });
+
+    const plan = generateRunPlan({
+      projectId: "project-1",
+      issueId: "issue-1",
+      issue,
+      agents: [
+        {
+          id: "backend-agent",
+          role: "backend",
+          providerId: "missing",
+          model: "mock-planner",
+          permissionMode: "manual",
+          capabilities: []
+        }
+      ]
+    });
+
+    assert.equal(plan.providerMetadata?.providerType, "unknown");
+    assert.equal(plan.providerMetadata?.costTrackingReady, false);
+  });
+});
+
+describe("sensitive data protection", () => {
+  it("masks common secret values in text and structured output", () => {
+    const text = sanitizeSensitiveText("apiKey=sk-secret123456789 and Authorization: Bearer abcdef123456");
+    const output = sanitizeForPublicOutput({
+      provider: "mock",
+      token: "ghp_supersecret1234567890",
+      nested: { message: "password=hunter2" }
+    });
+
+    assert.doesNotMatch(text, /sk-secret/);
+    assert.doesNotMatch(text, /abcdef123456/);
+    assert.deepEqual(output, {
+      provider: "mock",
+      token: "[REDACTED]",
+      nested: { message: "password=[REDACTED]" }
+    });
+  });
+});
+
+describe("ProviderGateway", () => {
+  it("registers providers without exposing configured secrets", () => {
+    const secretStore = new MemoryProviderSecretStore({ mock: "sk-secret123456789" });
+    const gateway = new ProviderGateway({ secretStore });
+    const provider = gateway.registerProvider({ id: "mock", type: "mock", defaultModel: "mock-planner" });
+
+    assert.equal(provider.secretConfigured, true);
+    assert.equal(JSON.stringify(gateway.listProviders()).includes("sk-secret"), false);
+  });
+
+  it("returns deterministic mock model results with cost metadata", async () => {
+    const gateway = new ProviderGateway({
+      providers: [{ id: "mock", type: "mock", defaultModel: "mock-planner" }]
+    });
+
+    const result = await gateway.callModel({
+      providerId: "mock",
+      purpose: "plan",
+      prompt: "Create a plan"
+    });
+
+    assert.match(result.output, /mock plan response/);
+    assert.equal(result.metadata.providerId, "mock");
+    assert.equal(result.metadata.model, "mock-planner");
+    assert.equal(result.metadata.estimated, true);
+  });
+
+  it("returns structured errors for missing and invalid providers", async () => {
+    const gateway = new ProviderGateway();
+
+    await assert.rejects(
+      () => gateway.callModel({ providerId: "missing", purpose: "plan", prompt: "hello" }),
+      (error) => error instanceof ProviderGatewayError && error.code === "provider_not_found"
+    );
+
+    assert.throws(
+      () => gateway.registerProvider({ id: "bad", type: "mock", apiKey: "sk-secret123456" } as never),
+      /sensitive field/
+    );
+  });
+});
+
+describe("Permission Engine", () => {
+  it("asks before edits and commands in manual mode", () => {
+    assert.equal(
+      evaluatePermission({ action: "edit_files", projectConfig: { mode: "manual" } }).decision,
+      "ask"
+    );
+    assert.equal(
+      evaluatePermission({ action: "run_command", projectConfig: { mode: "manual" } }).decision,
+      "ask"
+    );
+  });
+
+  it("allows scoped supervised edits and tests but denies out-of-scope edits", () => {
+    assert.equal(
+      evaluatePermission({
+        action: "edit_files",
+        targetPath: "packages/core/src/provider.ts",
+        projectConfig: { mode: "supervised", scopedPaths: ["packages/core"] }
+      }).decision,
+      "allow"
+    );
+    assert.equal(
+      evaluatePermission({
+        action: "edit_files",
+        targetPath: "apps/cli/src/index.ts",
+        projectConfig: { mode: "supervised", scopedPaths: ["packages/core"] }
+      }).decision,
+      "deny"
+    );
+    assert.equal(evaluatePermission({ action: "run_test", projectConfig: { mode: "supervised" } }).decision, "allow");
+  });
+
+  it("requires allowlists and explicit flags in autonomous mode", () => {
+    assert.equal(
+      evaluatePermission({
+        action: "run_command",
+        command: "pnpm test",
+        projectConfig: { mode: "autonomous", allowCommands: ["pnpm test"] }
+      }).decision,
+      "allow"
+    );
+    assert.equal(
+      evaluatePermission({ action: "push", projectConfig: { mode: "autonomous" } }).decision,
+      "deny"
+    );
+    assert.equal(
+      evaluatePermission({
+        action: "run_test",
+        currentBranch: "main",
+        projectConfig: { mode: "autonomous", allowCommands: ["pnpm test"] }
+      }).decision,
+      "deny"
+    );
+  });
+});
+
+describe("Agent Registry", () => {
+  it("selects an existing agent with a configured provider", () => {
+    const selection = selectAgentForRun({
+      agentId: "backend-agent",
+      agents: [
+        {
+          id: "backend-agent",
+          role: "backend",
+          providerId: "mock",
+          model: "mock-planner",
+          permissionMode: "manual",
+          capabilities: []
+        }
+      ],
+      providers: [{ id: "mock" }]
+    });
+
+    assert.equal(selection.agentId, "backend-agent");
+    assert.equal(selection.editable, true);
+  });
+
+  it("rejects missing agents and agents without configured providers", () => {
+    assert.throws(
+      () => selectAgentForRun({ agentId: "missing", agents: [], providers: [{ id: "mock" }] }),
+      /Agent not found/
+    );
+    assert.throws(
+      () =>
+        selectAgentForRun({
+          agentId: "backend-agent",
+          agents: [
+            {
+              id: "backend-agent",
+              role: "backend",
+              providerId: "missing",
+              model: "mock-planner",
+              permissionMode: "manual",
+              capabilities: []
+            }
+          ],
+          providers: [{ id: "mock" }]
+        }),
+      /unconfigured provider/
+    );
   });
 });

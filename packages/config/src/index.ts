@@ -3,7 +3,10 @@ import { z } from "zod";
 
 const permissionModeSchema = z.enum(["manual", "supervised", "autonomous"]);
 
-const sensitiveKeyPattern = /(?:secret|token|api[-_]?key|password|credential|privatekey)/i;
+const sensitiveKeyPattern =
+  /(?:secret|token|api[-_]?key|access[-_]?key|password|credential|private[-_]?key|authorization|bearer)/i;
+const providerTypeSchema = z.enum(["mock", "openai-compatible", "local-process", "custom"]);
+const providerParameterSchema = z.union([z.string().min(1), z.number(), z.boolean()]);
 
 export const projectManifestSchema = z
   .object({
@@ -25,9 +28,10 @@ export const projectManifestSchema = z
       .array(
         z.object({
           id: z.string().min(1),
-          type: z.enum(["mock", "openai-compatible", "local-process", "custom"]),
+          type: providerTypeSchema,
           endpoint: z.string().url().optional(),
-          defaultModel: z.string().min(1).optional()
+          defaultModel: z.string().min(1).optional(),
+          parameters: z.record(providerParameterSchema).default({})
         })
       )
       .default([]),
@@ -38,7 +42,8 @@ export const projectManifestSchema = z
           role: z.string().min(1),
           provider: z.string().min(1),
           model: z.string().min(1),
-          permissionMode: permissionModeSchema
+          permissionMode: permissionModeSchema,
+          capabilities: z.array(z.string().min(1)).default([])
         })
       )
       .default([]),
@@ -64,6 +69,27 @@ export const projectManifestSchema = z
           code: z.ZodIssueCode.custom,
           path,
           message: `Sensitive field "${key}" is not allowed in versioned BadocK manifests`
+        });
+      }
+    });
+    assertUniqueIds(
+      value.providers.map((provider) => provider.id),
+      "providers",
+      context
+    );
+    assertUniqueIds(
+      value.agents.map((agent) => agent.id),
+      "agents",
+      context
+    );
+
+    const providerIds = new Set(value.providers.map((provider) => provider.id));
+    value.agents.forEach((agent, index) => {
+      if (!providerIds.has(agent.provider)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["agents", index, "provider"],
+          message: `Agent "${agent.id}" references unconfigured provider "${agent.provider}"`
         });
       }
     });
@@ -125,5 +151,20 @@ function assertNoSensitiveKeys(input: unknown): void {
       const fieldPath = path.join(".");
       throw new Error(`Sensitive field "${key}" is not allowed in versioned BadocK manifests at ${fieldPath}`);
     }
+  });
+}
+
+function assertUniqueIds(ids: string[], fieldName: string, context: z.RefinementCtx): void {
+  const seen = new Set<string>();
+  ids.forEach((id, index) => {
+    if (seen.has(id)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [fieldName, index, "id"],
+        message: `Duplicate ${fieldName} id "${id}"`
+      });
+      return;
+    }
+    seen.add(id);
   });
 }

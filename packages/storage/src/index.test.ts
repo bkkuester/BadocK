@@ -32,6 +32,22 @@ describe("BadockStorage", () => {
         name: "Example",
         rootPath: "C:/repo"
       });
+      const provider = storage.registerProviderProfile({
+        id: "mock",
+        projectId: project.id,
+        type: "mock",
+        defaultModel: "mock-planner",
+        parameters: { temperature: 0 }
+      });
+      const agent = storage.registerAgentProfile({
+        id: "backend-agent",
+        projectId: project.id,
+        role: "backend",
+        providerId: provider.id,
+        model: "mock-planner",
+        permissionMode: "manual",
+        capabilities: ["plan"]
+      });
       const issue = storage.createIssue({
         id: "issue-1",
         projectId: project.id,
@@ -66,13 +82,25 @@ describe("BadockStorage", () => {
         candidateFiles: issue.files,
         suggestedValidations: ["Review acceptance criterion: Issue is persisted"],
         risks: ["RunPlan requires manual review before execution"],
-        acceptanceCriteria: updatedIssue.acceptanceCriteria
+        acceptanceCriteria: updatedIssue.acceptanceCriteria,
+        agentSelection: {
+          agentId: agent.id,
+          providerId: provider.id,
+          model: agent.model,
+          permissionMode: agent.permissionMode
+        },
+        providerMetadata: {
+          providerId: provider.id,
+          providerType: provider.type,
+          model: agent.model,
+          costTrackingReady: true
+        }
       });
       const log = storage.appendRunLog({
         id: "log-1",
         runId: run.id,
-        message: "Started",
-        metadata: { step: "init" }
+        message: "Started with apiKey=sk-supersecret123",
+        metadata: { step: "init", token: "ghp_supersecret1234567890" }
       });
       storage.createCostRecord({
         id: "cost-1",
@@ -88,8 +116,23 @@ describe("BadockStorage", () => {
         kind: "permission",
         summary: "Proceed with check"
       });
+      storage.recordPermissionDecision({
+        id: "permission-1",
+        runId: run.id,
+        decision: {
+          action: "edit_files",
+          mode: "manual",
+          decision: "ask",
+          reason: "Manual mode requires user confirmation for this action",
+          requiresUserDecision: true
+        }
+      });
 
       assert.equal(storage.getProject(project.id)?.name, "Example");
+      assert.deepEqual(storage.getProviderProfile(project.id, provider.id), provider);
+      assert.deepEqual(storage.listProviderProfiles(project.id), [provider]);
+      assert.deepEqual(storage.getAgentProfile(project.id, agent.id), agent);
+      assert.deepEqual(storage.listAgentProfiles(project.id), [agent]);
       assert.equal(storage.getIssue(issue.id)?.title, "Create scaffold");
       assert.equal(storage.getIssue(issue.id)?.state, "planned");
       assert.deepEqual(storage.getIssue(issue.id)?.acceptanceCriteria, ["Issue is persisted", "Issue can be edited"]);
@@ -101,8 +144,10 @@ describe("BadockStorage", () => {
       assert.equal(storage.getRunPlan(plan.id)?.executionAuthorized, false);
       assert.equal(storage.listRunPlans(issue.id).length, 1);
       assert.deepEqual(storage.listRunLogs(run.id), [log]);
+      assert.doesNotMatch(storage.listRunLogs(run.id)[0]?.message ?? "", /sk-supersecret123/);
+      assert.doesNotMatch(storage.listRunLogs(run.id)[0]?.metadataJson ?? "", /ghp_supersecret/);
       assert.equal(storage.listCostRecords(run.id).length, 1);
-      assert.equal(storage.listDecisions(run.id).length, 1);
+      assert.equal(storage.listDecisions(run.id).length, 2);
     } finally {
       storage.close();
     }

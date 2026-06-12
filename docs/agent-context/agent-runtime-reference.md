@@ -28,6 +28,10 @@ Expected adapter families:
 
 Do not implement all provider integrations in the MVP.
 
+Agents must not receive raw provider credentials. They select a provider/model alias, and runtime access goes through the Provider Gateway. Public provider configuration may include alias, type, endpoint, default model and non-secret parameters. Secrets stay outside the versioned manifest and outside run logs.
+
+The first provider adapter is deterministic and mock-backed so planning, diff review and report flows can be tested without external network calls. Real provider calls must remain behind the same gateway contract.
+
 ## Generic shell contract
 
 Minimum adapter shape:

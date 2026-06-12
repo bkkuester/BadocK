@@ -67,4 +67,42 @@ describe("projectManifestSchema", () => {
 
     assert.match(message, /project\.name:/);
   });
+
+  it("rejects agents that reference providers missing from the manifest", () => {
+    assert.throws(
+      () =>
+        parseProjectManifest({
+          ...validManifest,
+          agents: [
+            {
+              id: "provider-agent",
+              role: "provider",
+              provider: "missing",
+              model: "mock-planner",
+              permissionMode: "manual"
+            }
+          ]
+        }),
+      /unconfigured provider/
+    );
+  });
+
+  it("accepts non-secret provider parameters", () => {
+    const manifest = parseProjectManifest({
+      ...validManifest,
+      providers: [
+        {
+          id: "mock",
+          type: "mock",
+          defaultModel: "mock-planner",
+          parameters: {
+            temperature: 0,
+            mode: "deterministic"
+          }
+        }
+      ]
+    });
+
+    assert.equal(manifest.providers[0]?.parameters.temperature, 0);
+  });
 });
