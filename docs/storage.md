@@ -4,6 +4,7 @@ The MVP storage uses a local SQLite database. By default, project databases shou
 
 The initial schema includes:
 
+- `schema_migration`
 - `project`
 - `provider_profile`
 - `agent_profile`
@@ -23,9 +24,39 @@ The `agent_profile` table stores local agent declarations with role, provider, m
 
 The `stack_profile` table can store deterministic profiles generated from `project scan` facts.
 
+The schema is versioned through `schema_migration`. Migrations are deterministic and idempotent; opening the same database repeatedly must not duplicate migration rows. Legacy run status `decision_required` is migrated to canonical `needs_user_decision`. Legacy cost rows are retained and marked with measurement source `migration:legacy-cost-record` when old columns do not contain audit metadata.
+
+Canonical run statuses:
+
+- `planned`
+- `running`
+- `completed`
+- `completed_with_warnings`
+- `paused_budget_limit`
+- `failed`
+- `needs_user_decision`
+
 The `run_plan` table stores the first operational bridge from issue to execution planning. It can also store an editable agent selection and provider/model metadata for later cost tracking. A stored run plan requires manual review by default and does not authorize execution automatically.
 
+The `cost_record` table stores the audit dimensions required by the Cost Tracker foundation:
+
+- `project_id`
+- `issue_id`
+- `run_id`
+- `agent_id`
+- `provider`
+- `model`
+- `total_tokens`
+- `input_tokens`
+- `output_tokens`
+- `cost`
+- `currency`
+- `measurement_type` (`exact` or `estimated`)
+- `measurement_source`
+
 Run logs, decision summaries and model/provider metadata are sanitized before persistence to avoid storing common secret patterns in local reports.
+
+Adapter results can be persisted as sanitized run logs through `recordAgentRuntimeResult()`. The method stores the structured result under `run_log.metadata_json` and redacts common secret patterns in stdout, stderr, errors and nested metadata before persistence.
 
 The database is local only and does not require an external server. Paths should point to project-local state and must not contain secrets.
 
@@ -33,6 +64,12 @@ To initialize a database:
 
 ```bash
 pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
+```
+
+To save a StackProfile:
+
+```bash
+pnpm --filter @badock/cli badock project profile save .badock/badock.sqlite <project-id> <project-path>
 ```
 
 To create and plan a local issue:
@@ -43,6 +80,8 @@ pnpm --filter @badock/cli badock agent register .badock/badock.sqlite --project 
 pnpm --filter @badock/cli badock issue create .badock/badock.sqlite --project <project-id> --title <title> --objective <objective> --scope <scope> --agent <agent-id> --acceptance <criterion>
 pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id> --agent <agent-id>
 ```
+
+`plan create` consumes the latest persisted StackProfile for the issue project when one exists. If no profile is saved, it still creates a manual-review RunPlan but cannot infer validation scripts from the stack.
 
 To reset local state safely, stop any BadocK process and delete only the intended local database files:
 

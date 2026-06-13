@@ -83,3 +83,54 @@ Why:
 Impact on agents:
 Related issue/PR:
 ```
+
+## Repo-side sync notes
+
+### 2026-06-13 - Fase 0 foundation gate
+
+Changed files:
+
+- `AGENTS.md`
+- `.github/workflows/ci.yml`
+- `package.json`
+- `README.md`
+- `docs/storage.md`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/agent-context/development-rules.md`
+- `docs/agent-context/agent-runtime-reference.md`
+
+Why:
+
+- Aligned Fase 0 foundation contracts before real agent execution: CI, canonical run statuses, SQLite schema versioning, auditable costs and persisted StackProfile flow.
+
+Impact on agents:
+
+- Agents must use the canonical `RunStatus` set, treat CostRecord as audit metadata and save StackProfile before expecting `plan create` to infer stack validations.
+
+Related issue/PR:
+
+- GitHub issues #4, #6, #17, #22, #26 and #27.
+
+### 2026-06-13
+
+Changed files:
+
+- `docs/runtime-adapters.md`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/storage.md`
+- `docs/agent-context/agent-runtime-reference.md`
+- `README.md`
+
+Why:
+
+- Documented issue #14 delivery: generic local process runtime adapter, permission gate, stdin policy, sanitized runtime result persistence and known limitations.
+
+Impact on agents:
+
+- Agents can rely on a provider-neutral local process adapter primitive, but must not treat it as full run execution before Worktree Manager and Run Orchestrator are implemented.
+
+Related issue/PR:
+
+- GitHub issue #14.

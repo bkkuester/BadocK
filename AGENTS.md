@@ -177,6 +177,18 @@ Budget rule:
 
 Useful states:
 
+- `planned`;
+- `running`;
+- `completed`;
+- `completed_with_warnings`;
+- `paused_budget_limit`;
+- `failed`;
+- `needs_user_decision`.
+
+Canonical `RunStatus` values for storage, runtime contracts and documentation are:
+
+- `planned`;
+- `running`;
 - `completed`;
 - `completed_with_warnings`;
 - `paused_budget_limit`;

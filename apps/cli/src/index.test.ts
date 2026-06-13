@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
@@ -268,7 +268,18 @@ describe("runBadockCli", () => {
   });
 
   it("creates a persisted RunPlan from a local issue without authorizing execution", async () => {
-    const dir = tempDir();
+    const dir = join(tempDir(), "project with spaces");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({
+        scripts: {
+          check: "tsc --noEmit",
+          test: "node --test"
+        }
+      })
+    );
+    writeFileSync(join(dir, "pnpm-lock.yaml"), "");
     const dbPath = join(dir, ".badock", "badock.sqlite");
     const storage = createBadockStorage(dbPath);
     const project = storage.createProject({ id: "project-1", name: "Example", rootPath: dir });
@@ -298,8 +309,11 @@ describe("runBadockCli", () => {
     });
     storage.close();
 
+    const savedProfile = await runBadockCli(["project", "profile", "save", dbPath, project.id, dir]);
     const result = await runBadockCli(["plan", "create", dbPath, issue.id, "--agent", "stack-agent"]);
 
+    assert.equal(savedProfile.exitCode, 0);
+    assert.equal(JSON.parse(JSON.parse(savedProfile.output ?? "{}").profileJson).packageManager, "pnpm");
     assert.equal(result.exitCode, 0);
     const plan = JSON.parse(result.output ?? "{}");
     assert.equal(plan.issueId, issue.id);
@@ -308,5 +322,6 @@ describe("runBadockCli", () => {
     assert.equal(plan.agentSelection.agentId, "stack-agent");
     assert.equal(plan.providerMetadata.providerId, "mock");
     assert.deepEqual(plan.acceptanceCriteria, ["Scanner is deterministic"]);
+    assert.match(plan.suggestedValidations.join("\n"), /check/);
   });
 });

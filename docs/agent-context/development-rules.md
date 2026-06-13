@@ -150,6 +150,18 @@ If the limit is hit during execution, finish the current step and stop safely.
 
 Useful run states:
 
+- `planned`;
+- `running`;
+- `completed`;
+- `completed_with_warnings`;
+- `paused_budget_limit`;
+- `failed`;
+- `needs_user_decision`.
+
+Canonical `RunStatus` values in TypeScript, SQLite schema and docs:
+
+- `planned`;
+- `running`;
 - `completed`;
 - `completed_with_warnings`;
 - `paused_budget_limit`;

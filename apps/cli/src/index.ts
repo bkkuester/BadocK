@@ -72,6 +72,29 @@ export async function runBadockCli(argv: string[]): Promise<CommandResult> {
   }
 
   if (command === "project" && subcommand === "profile") {
+    if (argv[2] === "save") {
+      const dbPath = argv[3];
+      const projectId = argv[4];
+      const target = argv[5];
+      if (!dbPath || !projectId || !target) {
+        return { exitCode: 1, error: "Usage: badock project profile save <db-path> <project-id> <project-path>" };
+      }
+
+      const storage = createBadockStorage(resolveCliPath(dbPath));
+      try {
+        const scan = await scanProject(resolveCliPath(target));
+        const record = storage.saveStackProfile({
+          projectId,
+          profile: createStackProfile(scan)
+        });
+        return { exitCode: 0, output: jsonOutput(record) };
+      } catch (error) {
+        return { exitCode: 1, error: safeErrorMessage(error) };
+      } finally {
+        storage.close();
+      }
+    }
+
     const target = argv[2];
     if (!target) {
       return { exitCode: 1, error: "Usage: badock project profile <project-path>" };
@@ -460,6 +483,7 @@ function usage(): string {
     "  badock version",
     "  badock project scan <project-path>",
     "  badock project profile <project-path>",
+    "  badock project profile save <db-path> <project-id> <project-path>",
     "  badock manifest validate <path>",
     "  badock storage init <db-path>",
     "  badock provider register <db-path> --project <project-id> --id <provider-id> --type <mock|openai-compatible|local-process|custom> [--endpoint <url>] [--default-model <model>] [--param key=value]",
