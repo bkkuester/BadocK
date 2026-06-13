@@ -102,6 +102,16 @@ describe("BadockStorage", () => {
         message: "Started with apiKey=sk-supersecret123",
         metadata: { step: "init", token: "ghp_supersecret1234567890" }
       });
+      const runtimeLog = storage.recordAgentRuntimeResult({
+        runId: run.id,
+        result: {
+          adapterId: "local-process",
+          status: "failed",
+          stdout: "apiKey=sk-secret123456789",
+          stderr: "Authorization: Bearer abcdef123456",
+          exitCode: 2
+        }
+      });
       storage.createCostRecord({
         id: "cost-1",
         runId: run.id,
@@ -143,9 +153,13 @@ describe("BadockStorage", () => {
       assert.equal(storage.getRunPlan(plan.id)?.requiresManualReview, true);
       assert.equal(storage.getRunPlan(plan.id)?.executionAuthorized, false);
       assert.equal(storage.listRunPlans(issue.id).length, 1);
-      assert.deepEqual(storage.listRunLogs(run.id), [log]);
+      assert.deepEqual(storage.listRunLogs(run.id), [log, runtimeLog]);
       assert.doesNotMatch(storage.listRunLogs(run.id)[0]?.message ?? "", /sk-supersecret123/);
       assert.doesNotMatch(storage.listRunLogs(run.id)[0]?.metadataJson ?? "", /ghp_supersecret/);
+      assert.equal(storage.listRunLogs(run.id)[1]?.level, "error");
+      assert.match(storage.listRunLogs(run.id)[1]?.message ?? "", /local-process/);
+      assert.doesNotMatch(storage.listRunLogs(run.id)[1]?.metadataJson ?? "", /sk-secret123456789|abcdef123456/);
+      assert.match(storage.listRunLogs(run.id)[1]?.metadataJson ?? "", /\[REDACTED\]/);
       assert.equal(storage.listCostRecords(run.id).length, 1);
       assert.equal(storage.listDecisions(run.id).length, 2);
     } finally {

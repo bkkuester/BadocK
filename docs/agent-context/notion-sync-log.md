@@ -83,3 +83,28 @@ Why:
 Impact on agents:
 Related issue/PR:
 ```
+
+## Repo-side sync notes
+
+### 2026-06-13
+
+Changed files:
+
+- `docs/runtime-adapters.md`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/storage.md`
+- `docs/agent-context/agent-runtime-reference.md`
+- `README.md`
+
+Why:
+
+- Documented issue #14 delivery: generic local process runtime adapter, permission gate, stdin policy, sanitized runtime result persistence and known limitations.
+
+Impact on agents:
+
+- Agents can rely on a provider-neutral local process adapter primitive, but must not treat it as full run execution before Worktree Manager and Run Orchestrator are implemented.
+
+Related issue/PR:
+
+- GitHub issue #14.

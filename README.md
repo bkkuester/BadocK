@@ -68,6 +68,8 @@ Local providers, agents, issues and run plans are stored in SQLite so the MVP ca
 
 Provider secrets are not stored in the manifest or local provider registry. Agents select providers through the Provider Gateway, which exposes only public provider/model metadata and sanitized errors.
 
+The core now includes a generic local process runtime adapter. It executes only structured `program` plus `args` commands after Permission Engine approval, captures sanitized stdout/stderr/errors and supports stdin and timeout handling. It is not exposed as a direct arbitrary-process CLI command yet; Run Orchestrator and Worktree Manager integration remain required before real run execution.
+
 ## MVP Non-Goals
 
 - No UI, IDE integration or desktop app.
@@ -79,8 +81,11 @@ Provider secrets are not stored in the manifest or local provider registry. Agen
 
 - `docs/manifest.md`: versioned project manifest fields and secret policy.
 - `docs/storage.md`: local SQLite schema, location and reset guidance.
+- `docs/runtime-adapters.md`: generic local process adapter contract, permission gate and known limits.
+- `docs/changelog.md`: source-controlled delivery log.
+- `docs/as-built.md`: delivered implementation notes and limitations.
 - `docs/codex/context-request.md`: context-gathering prompt for Codex before implementation.
 
 ## Status
 
-Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management, provider/agent registry primitives, permission-aware run planning and persisted run-plan generation. `Environment` remains legacy/reference material only.
+Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management, provider/agent registry primitives, permission-aware run planning and persisted run-plan generation. Core primitives now include a permission-gated generic local process runtime adapter for future run execution. `Environment` remains legacy/reference material only.

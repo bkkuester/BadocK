@@ -6,12 +6,14 @@ import { afterEach, describe, it } from "node:test";
 import {
   createStackProfile,
   evaluatePermission,
+  formatProcessCommand,
   generateRunPlan,
   getBadockHealth,
   MemoryProviderSecretStore,
   normalizeLocalIssueInput,
   ProviderGateway,
   ProviderGatewayError,
+  runLocalProcess,
   sanitizeForPublicOutput,
   sanitizeSensitiveText,
   selectAgentForRun,
@@ -417,6 +419,190 @@ describe("Permission Engine", () => {
   });
 });
 
+describe("Local Process Runtime Adapter", () => {
+  it("executes an allowlisted process with stdout and stdin", async () => {
+    const dir = tempDir();
+    const args = ["-e", "process.stdin.on('data', (chunk) => process.stdout.write(`echo:${chunk}`));"];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      stdin: "hello",
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "completed");
+    assert.equal(result.didExecute, true);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.command.stdin, "provided");
+    assert.equal(result.stdout, "echo:hello");
+  });
+
+  it("captures stderr without marking a zero exit as failed", async () => {
+    const dir = tempDir();
+    const args = ["-e", "console.error('warning on stderr');"];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "completed");
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stderr, /warning on stderr/);
+  });
+
+  it("preserves stdout and stderr when the process exits non-zero", async () => {
+    const dir = tempDir();
+    const args = ["-e", "console.log('before failure'); console.error('failure detail'); process.exit(7);"];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.exitCode, 7);
+    assert.match(result.stdout, /before failure/);
+    assert.match(result.stderr, /failure detail/);
+  });
+
+  it("returns a structured spawn error for a missing binary", async () => {
+    const dir = tempDir();
+    const program = join(dir, "missing-runtime.exe");
+    const command = formatProcessCommand(program, []);
+
+    const result = await runLocalProcess({
+      program,
+      cwd: dir,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "spawn_error");
+    assert.equal(result.didExecute, false);
+    assert.match(result.error ?? "", /ENOENT|spawn/i);
+  });
+
+  it("times out with partial output preserved", async () => {
+    const dir = tempDir();
+    const args = [
+      "-e",
+      "process.stdout.write('partial output'); setTimeout(() => console.log('late output'), 1000);"
+    ];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      timeoutMs: 250,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "timed_out");
+    assert.match(result.stdout, /partial output/);
+  });
+
+  it("does not execute when permission requires a user decision", async () => {
+    const dir = tempDir();
+    const args = ["-e", "console.log('should not run');"];
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: { projectConfig: { mode: "manual" }, currentBranch: "feature/runtime" }
+    });
+
+    assert.equal(result.status, "needs_user_decision");
+    assert.equal(result.didExecute, false);
+    assert.equal(result.permission?.decision, "ask");
+    assert.equal(result.stdout, "");
+  });
+
+  it("blocks execution when permission denies the command", async () => {
+    const dir = tempDir();
+    const args = ["-e", "console.log('should not run');"];
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: { projectConfig: { mode: "autonomous", allowCommands: [] }, currentBranch: "feature/runtime" }
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.didExecute, false);
+    assert.equal(result.permission?.decision, "deny");
+    assert.equal(result.stdout, "");
+  });
+
+  it("sanitizes secrets from stdout, stderr and errors", async () => {
+    const dir = tempDir();
+    const args = [
+      "-e",
+      "console.log('apiKey=sk-secret123456789'); console.error('Authorization: Bearer abcdef123456'); process.exit(2);"
+    ];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "failed");
+    assert.doesNotMatch(result.stdout, /sk-secret123456789/);
+    assert.doesNotMatch(result.stderr, /abcdef123456/);
+    assert.match(result.stdout, /apiKey=\[REDACTED\]/);
+    assert.match(result.stderr, /\[REDACTED\]/);
+  });
+
+  it("runs with a cwd containing spaces", async () => {
+    const dir = join(tempDir(), "path with space");
+    mkdirSync(dir, { recursive: true });
+    const args = ["-e", "console.log(process.cwd());"];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "completed");
+    assert.match(result.stdout.replace(/\\/g, "/"), /path with space/);
+  });
+
+  it("blocks sensitive environment allowlist keys before spawning", async () => {
+    const dir = tempDir();
+    const args = ["-e", "console.log('should not run');"];
+    const command = formatProcessCommand(process.execPath, args);
+
+    const result = await runLocalProcess({
+      program: process.execPath,
+      args,
+      cwd: dir,
+      envAllowlist: ["API_KEY"],
+      permission: allowRuntimeCommand(command)
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.didExecute, false);
+    assert.match(result.error ?? "", /sensitive/i);
+  });
+});
+
 describe("Agent Registry", () => {
   it("selects an existing agent with a configured provider", () => {
     const selection = selectAgentForRun({
@@ -463,3 +649,10 @@ describe("Agent Registry", () => {
     );
   });
 });
+
+function allowRuntimeCommand(command: string) {
+  return {
+    projectConfig: { mode: "supervised" as const, allowCommands: [command] },
+    currentBranch: "feature/runtime"
+  };
+}

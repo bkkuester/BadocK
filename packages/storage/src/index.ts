@@ -113,6 +113,18 @@ export type DecisionRecord = {
   updatedAt: string;
 };
 
+export type AgentRuntimeResultRecordInput = {
+  runId: string;
+  result: {
+    adapterId?: string;
+    status?: string;
+    stdout?: string;
+    stderr?: string;
+    error?: string | null;
+    [key: string]: unknown;
+  };
+};
+
 export type RunPlanRecord = {
   id: string;
   projectId: string;
@@ -697,6 +709,21 @@ export class BadockStorage {
       .map((row) => mapRunLog(row as RunLogRow));
   }
 
+  recordAgentRuntimeResult(input: AgentRuntimeResultRecordInput): RunLogRecord {
+    const status = typeof input.result.status === "string" && input.result.status ? input.result.status : "unknown";
+    const adapterId =
+      typeof input.result.adapterId === "string" && input.result.adapterId ? input.result.adapterId : "unknown";
+
+    return this.appendRunLog({
+      runId: input.runId,
+      level: runtimeStatusToLogLevel(status),
+      message: `Agent runtime ${adapterId} finished with status ${status}`,
+      metadata: {
+        agentRuntimeResult: input.result
+      }
+    });
+  }
+
   createCostRecord(input: CreateCostRecordInput): CostRecord {
     const record = {
       id: input.id ?? randomUUID(),
@@ -1263,6 +1290,18 @@ function normalizeStringArray(value: string[]): string[] {
 
 function formatPermissionDecision(decision: PermissionDecisionRecord): string {
   return `${decision.action}: ${decision.decision} (${decision.mode}) - ${decision.reason}`;
+}
+
+function runtimeStatusToLogLevel(status: string): RunLogRecord["level"] {
+  if (status === "completed") {
+    return "info";
+  }
+
+  if (status === "needs_user_decision" || status === "blocked" || status === "timed_out" || status === "cancelled") {
+    return "warn";
+  }
+
+  return "error";
 }
 
 function sanitizeForPublicOutput(value: unknown): unknown {

@@ -49,6 +49,31 @@ Minimum adapter shape:
 }
 ```
 
+## Current local process adapter
+
+The MVP now includes a generic `local-process` adapter primitive.
+
+Current guarantees:
+
+- commands are represented as `program` plus `args`;
+- the adapter uses process spawn with `shell: false`;
+- prompt/context can be sent through stdin;
+- Permission Engine is evaluated before spawn;
+- permission `ask` returns `needs_user_decision` without execution;
+- permission `deny` returns `blocked` without execution;
+- stdout, stderr, exit code, spawn error, timeout, cancellation, cwd and duration are captured;
+- public output and persisted result metadata are sanitized;
+- secret-like environment keys are blocked from the env allowlist.
+
+Current limits:
+
+- it is not Codex-specific;
+- it is not exposed as a direct arbitrary-process CLI command;
+- it is not yet connected to Worktree Manager or Run Orchestrator;
+- it does not replace the future Codex CLI adapter.
+
+See `docs/runtime-adapters.md` for the versioned contract.
+
 ## Prompt transport
 
 Avoid large prompt as command-line argument.

@@ -27,6 +27,8 @@ The `run_plan` table stores the first operational bridge from issue to execution
 
 Run logs, decision summaries and model/provider metadata are sanitized before persistence to avoid storing common secret patterns in local reports.
 
+Adapter results can be persisted as sanitized run logs through `recordAgentRuntimeResult()`. The method stores the structured result under `run_log.metadata_json` and redacts common secret patterns in stdout, stderr, errors and nested metadata before persistence.
+
 The database is local only and does not require an external server. Paths should point to project-local state and must not contain secrets.
 
 To initialize a database:
