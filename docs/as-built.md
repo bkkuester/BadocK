@@ -1,5 +1,47 @@
 # As-Built
 
+## 2026-06-13 - Fase 0 Foundation Gate
+
+Related issues: #4, #6, #17, #22, #26, #27.
+
+Delivered scope:
+
+- GitHub Actions CI now runs on push and pull request to `main`.
+- CI uses pnpm, installs with `pnpm install --frozen-lockfile` and runs `pnpm check`.
+- Root `engines.node` now requires `>=22.5 <25` to match the `node:sqlite` dependency.
+- Storage exports the canonical `RunStatus` contract: `planned`, `running`, `completed`, `completed_with_warnings`, `paused_budget_limit`, `failed`, `needs_user_decision`.
+- SQLite migration history is tracked in `schema_migration`.
+- The `run` table is migrated to the canonical status CHECK constraint.
+- Legacy `decision_required` run rows are migrated to `needs_user_decision`.
+- `cost_record` now stores project, issue, run, agent, provider, model, token, cost, currency, measurement type and measurement source dimensions.
+- Legacy cost rows are migrated without deletion and marked with `migration:legacy-cost-record` when old rows lack measurement source.
+- CLI now supports `badock project profile save <db-path> <project-id> <project-path>`.
+- `plan create` is covered by tests proving it consumes the latest persisted StackProfile.
+
+Design decisions:
+
+- The phase remains storage/contract/CLI-only. No real adapter execution, Worktree Manager, UI or GitHub Sync was introduced.
+- `CostRecord` creation validates that `projectId`, `issueId` and `runId` match the persisted run before insertion.
+- Migration rows are inserted with `INSERT OR IGNORE` so repeated opens are idempotent.
+- Legacy cost `agent_id` defaults to `unknown` because the old schema did not store that dimension.
+- Cost `currency` is normalized to uppercase at write time.
+
+Validation:
+
+- Storage tests cover canonical RunStatus acceptance/rejection.
+- Storage tests cover auditable CostRecord dimensions.
+- Storage tests cover idempotent migrations.
+- Storage tests cover migration from legacy run status and legacy cost schema.
+- CLI tests cover StackProfile persistence and `plan create` consumption.
+- CLI tests include a project path with spaces.
+
+Known limitations:
+
+- GitHub issue bodies could not be fetched with local `gh` because the CLI returned HTTP 401.
+- Cost values remain caller-provided; exact provider metering is not implemented in this phase.
+- Run lifecycle transitions are not implemented yet.
+- No real agent execution, advanced worktree management, UI or PR creation was added.
+
 ## 2026-06-13 - Issue #14 Local Process Runtime Adapter
 
 Issue: #14 `feature: implementar adapter generico de processo local`

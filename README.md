@@ -42,13 +42,14 @@ abrir projeto -> detectar stack basica -> criar/melhorar issue -> selecionar age
 ## Commands
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm check
 pnpm test
 pnpm build
 pnpm --filter @badock/cli badock health
 pnpm --filter @badock/cli badock project scan .
 pnpm --filter @badock/cli badock project profile .
+pnpm --filter @badock/cli badock project profile save .badock/badock.sqlite <project-id> .
 pnpm --filter @badock/cli badock manifest validate .badock/project.example.json
 pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
 pnpm --filter @badock/cli badock provider register .badock/badock.sqlite --project <project-id> --id mock --type mock --default-model mock-planner
@@ -64,7 +65,15 @@ pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id> --
 
 `project scan` and `project profile` only read files and Git metadata. They do not execute project scripts.
 
-Local providers, agents, issues and run plans are stored in SQLite so the MVP can proceed without GitHub. A generated run plan always requires manual review and does not authorize execution by itself.
+`project profile save` persists the detected StackProfile into SQLite. `plan create` reads the latest persisted StackProfile for the issue project and includes its validation scripts in the generated RunPlan.
+
+Local providers, agents, issues, stack profiles and run plans are stored in SQLite so the MVP can proceed without GitHub. A generated run plan always requires manual review and does not authorize execution by itself.
+
+Run records use the canonical `RunStatus` set: `planned`, `running`, `completed`, `completed_with_warnings`, `paused_budget_limit`, `failed` and `needs_user_decision`.
+
+Cost records are prepared for future audit by project, issue, run, agent, provider, model, tokens, cost, currency, measurement type (`exact` or `estimated`) and measurement source.
+
+GitHub Actions CI runs on push and pull request to `main`, installs with `pnpm install --frozen-lockfile` and executes `pnpm check` on Ubuntu and Windows.
 
 Provider secrets are not stored in the manifest or local provider registry. Agents select providers through the Provider Gateway, which exposes only public provider/model metadata and sanitized errors.
 
@@ -88,4 +97,4 @@ The core now includes a generic local process runtime adapter. It executes only 
 
 ## Status
 
-Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, basic stack profiling, local BadocK issue management, provider/agent registry primitives, permission-aware run planning and persisted run-plan generation. Core primitives now include a permission-gated generic local process runtime adapter for future run execution. `Environment` remains legacy/reference material only.
+Repository initialized as the BadocK canonical project. The CLI now includes deterministic project scanning, stack profile persistence, local BadocK issue management, provider/agent registry primitives, permission-aware run planning and persisted run-plan generation. Core primitives now include a permission-gated generic local process runtime adapter for future run execution. `Environment` remains legacy/reference material only.

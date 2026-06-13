@@ -158,14 +158,17 @@ Security review is mandatory for:
 
 Each runtime call should log:
 
-- provider;
-- model;
-- agent id;
+- project id;
 - issue id;
 - run id;
-- start/end time;
-- token usage when available;
-- estimated cost when exact cost is unavailable;
+- agent id;
+- provider;
+- model;
+- token usage;
+- cost;
+- currency;
+- measurement type: `exact` or `estimated`;
+- measurement source;
 - command/runtime exit status.
 
 ## Failure behavior
@@ -174,6 +177,9 @@ Failure must leave a useful state.
 
 Examples:
 
+- `planned` before execution is authorized;
+- `running` while execution is active;
+- `completed` when the run satisfies acceptance criteria;
 - `failed` with logs and error;
 - `paused_budget_limit` with partial report;
 - `needs_user_decision` with exact blocking decision;

@@ -6,7 +6,7 @@
   "description": "BadocK local-first ADOC monorepo.",
   "license": "MIT",
   "engines": {
-    "node": ">=22 <25"
+    "node": ">=22.5 <25"
   },
   "scripts": {
     "build": "pnpm -r build",

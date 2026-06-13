@@ -86,6 +86,32 @@ Related issue/PR:
 
 ## Repo-side sync notes
 
+### 2026-06-13 - Fase 0 foundation gate
+
+Changed files:
+
+- `AGENTS.md`
+- `.github/workflows/ci.yml`
+- `package.json`
+- `README.md`
+- `docs/storage.md`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/agent-context/development-rules.md`
+- `docs/agent-context/agent-runtime-reference.md`
+
+Why:
+
+- Aligned Fase 0 foundation contracts before real agent execution: CI, canonical run statuses, SQLite schema versioning, auditable costs and persisted StackProfile flow.
+
+Impact on agents:
+
+- Agents must use the canonical `RunStatus` set, treat CostRecord as audit metadata and save StackProfile before expecting `plan create` to infer stack validations.
+
+Related issue/PR:
+
+- GitHub issues #4, #6, #17, #22, #26 and #27.
+
 ### 2026-06-13
 
 Changed files:
