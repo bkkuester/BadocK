@@ -164,6 +164,26 @@ Never store API keys in a versioned manifest. Never expose full keys in logs or 
 
 Logs must mask secrets.
 
+## Forbidden Product Diff Artifacts
+
+Run evidence is local execution evidence, not product code. Do not include these paths in implementation commits or PRs:
+
+- `.badock/runs/**`;
+- `.badock/reports/**`;
+- `.agents/runs/**`.
+
+Local issue files under `.badock/issues/**` may be versioned only when the issue itself is the intended product artifact.
+
+## Safe Execution Flow
+
+The safe operational sequence is:
+
+```txt
+badock:scan -> badock:issue:new/list/show/validate -> agents:issue -> agents:run -> badock:review-run -> badock:commit-run -> badock:push-run -> agents:pr
+```
+
+`agents:run` must not commit, push or open PRs. Commit, push and PR creation are separate sensitive steps. Execution on `main` or `master` remains blocked unless the user explicitly enables it.
+
 ## Cost And Telemetry
 
 BadocK must register usage by project, run, issue, agent, provider and model.
@@ -238,6 +258,18 @@ An issue is solved when:
 - security-agent did not block when applicable;
 - diff was approved by the user or by explicit rule;
 - PR was created or branch is ready.
+
+## Final Report Format
+
+BadocK implementation work must finish with:
+
+- `Resultado`;
+- `Arquivos alterados`;
+- `Decisoes tecnicas`;
+- `Validacoes executadas`;
+- `Custos`;
+- `Riscos pendentes`;
+- `Proxima issue recomendada`.
 
 ## Implementation Gate
 

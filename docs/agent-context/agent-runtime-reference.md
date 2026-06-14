@@ -105,6 +105,8 @@ Expected lifecycle:
 11. write run report;
 12. prepare PR or mark branch ready.
 
+Run report output now follows Run Report v0. A final run report must write `run.json`, `prompt.md`, `stdout.log`, `stderr.log`, `diff.patch`, `summary.md` and `traceability.md` under `.badock/runs/<run-id>/`, with secrets masked and artifact paths constrained to that run directory.
+
 ## Agent profile concept
 
 A profile should eventually include:

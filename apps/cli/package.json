@@ -16,7 +16,7 @@
     "badock": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "check": "pnpm typecheck && pnpm test",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "pnpm --filter @badock/config build && pnpm --filter @badock/core build && pnpm --filter @badock/storage build && tsc -p tsconfig.json --noEmit",
     "test": "pnpm build && node --no-warnings --test \"dist/**/*.test.js\""
   },
   "dependencies": {

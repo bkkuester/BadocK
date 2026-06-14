@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatManifestError, parseProjectManifest } from "./index";
+import {
+  formatManifestError,
+  getManifestAgentProfiles,
+  getManifestAllowedCommands,
+  getManifestPermissionMode,
+  parseProjectManifest
+} from "./index";
 
 const validManifest = {
   version: 1,
@@ -42,7 +48,7 @@ describe("projectManifestSchema", () => {
     const manifest = parseProjectManifest(validManifest);
 
     assert.equal(manifest.project.name, "Example");
-    assert.equal(manifest.agents[0]?.id, "architecture-agent");
+    assert.equal(getManifestAgentProfiles(manifest)[0]?.id, "architecture-agent");
   });
 
   it("rejects sensitive fields anywhere in the manifest", () => {
@@ -104,5 +110,71 @@ describe("projectManifestSchema", () => {
     });
 
     assert.equal(manifest.providers[0]?.parameters.temperature, 0);
+  });
+
+  it("accepts the BadocK operational manifest shape", () => {
+    const manifest = parseProjectManifest({
+      schemaVersion: 1,
+      project: {
+        name: "BadocK",
+        productName: "BadocK",
+        type: "adoc",
+        root: "."
+      },
+      stack: {
+        languages: ["typescript"],
+        runtime: "node",
+        packageManager: "pnpm",
+        testCommands: ["corepack pnpm test"],
+        buildCommands: ["corepack pnpm build"]
+      },
+      vcs: {
+        type: "git",
+        defaultBranch: "main",
+        worktreeBaseDir: "../worktrees",
+        allowMainExecution: false
+      },
+      github: {
+        enabled: true,
+        owner: "bkkuester",
+        repo: "BadocK",
+        issues: true,
+        pullRequests: true
+      },
+      providers: [{ id: "codex-cli", type: "local-process", defaultModel: "unknown" }],
+      agents: {
+        registryFile: ".badock/agents.json",
+        defaultSelectionMode: "explicit",
+        profiles: [
+          {
+            id: "ci-agent",
+            role: "ci",
+            provider: "codex-cli",
+            model: "unknown",
+            permissionMode: "manual",
+            labels: ["ci-agent"],
+            paths: ["packages/**"]
+          }
+        ]
+      },
+      permissions: {
+        mode: "manual",
+        allowModifySecrets: false,
+        allowedCommands: ["corepack pnpm test"]
+      },
+      runs: {
+        directory: ".badock/runs",
+        ignoreRunArtifactsInGit: true
+      },
+      cost: {
+        tracking: "estimated",
+        currency: "USD",
+        budgetPerRun: null
+      }
+    });
+
+    assert.equal(getManifestPermissionMode(manifest), "manual");
+    assert.equal(getManifestAgentProfiles(manifest)[0]?.id, "ci-agent");
+    assert.deepEqual(getManifestAllowedCommands(manifest), ["corepack pnpm test"]);
   });
 });

@@ -86,6 +86,58 @@ Related issue/PR:
 
 ## Repo-side sync notes
 
+### 2026-06-13 - Remediation Gate + Run Report v0
+
+Changed files:
+
+- `README.md`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/agent-context/notion-sync-log.md`
+- `package.json`
+- `packages/core/src/run-store.ts`
+- `packages/core/src/run-report-smoke.ts`
+- `packages/core/src/validate-runs.ts`
+- `packages/core/src/security.ts`
+- `packages/core/src/diff-review.ts`
+- `packages/core/src/index.test.ts`
+- `apps/cli/src/workflow.ts`
+
+Why:
+
+- Added the mandatory Run Report v0 artifact contract, traceability report, report validator and secret/path safety gates.
+
+Impact on agents:
+
+- Agents must treat `.badock/runs/<run-id>/run.json`, `summary.md` and `traceability.md` as required evidence before declaring a run complete.
+
+Related issue/PR:
+
+- Inferred production order: Remediation Gate + Run Report v0.
+
+### 2026-06-13 - Core operational flow
+
+Changed files:
+
+- `README.md`
+- `AGENTS.md`
+- `.badock/project.json`
+- `docs/changelog.md`
+- `docs/as-built.md`
+- `docs/agent-context/notion-sync-log.md`
+
+Why:
+
+- Documented the implemented core flow commands, run artifact policy, local issue store, separated commit/push/PR flow and deterministic run/review/cost evidence.
+
+Impact on agents:
+
+- Agents must use the safe operational sequence and treat `.badock/runs/**`, `.badock/reports/**` and `.agents/runs/**` as non-product artifacts.
+
+Related issue/PR:
+
+- Core issues 2-13 from the local implementation packet.
+
 ### 2026-06-13 - Fase 0 foundation gate
 
 Changed files:

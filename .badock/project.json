@@ -37,6 +37,14 @@
         "program": "codex",
         "stdin": true
       }
+    },
+    {
+      "id": "mock",
+      "type": "mock",
+      "defaultModel": "mock-planner",
+      "parameters": {
+        "temperature": 0
+      }
     }
   ],
   "agents": {
@@ -49,9 +57,19 @@
         "provider": "codex-cli",
         "model": "unknown",
         "permissionMode": "manual",
-        "capabilities": ["typecheck", "test", "build"],
+        "capabilities": ["typecheck", "test", "build", "core-hardening"],
         "labels": ["ci-agent"],
-        "paths": ["apps/**", "packages/**", "README.md"]
+        "paths": ["apps/**", "packages/**", "README.md", "AGENTS.md", "package.json"]
+      },
+      {
+        "id": "orchestration-agent",
+        "role": "orchestration",
+        "provider": "codex-cli",
+        "model": "unknown",
+        "permissionMode": "manual",
+        "capabilities": ["run-orchestration", "worktree", "review"],
+        "labels": ["orchestration-agent"],
+        "paths": ["apps/**", "packages/**", ".badock/project.json", "README.md"]
       }
     ]
   },
@@ -61,12 +79,32 @@
     "allowCommit": false,
     "allowPush": false,
     "allowOpenPr": false,
+    "allowPullRequest": false,
     "allowInstallDependencies": false,
+    "allowDependencyInstall": false,
     "allowModifySecrets": false,
-    "allowCommands": ["corepack pnpm typecheck", "corepack pnpm test", "corepack pnpm build"],
-    "allowedCommands": ["corepack pnpm typecheck", "corepack pnpm test", "corepack pnpm build"],
-    "sensitiveFiles": [".env", ".env.*"],
-    "allowNetwork": false
+    "allowSecretChanges": false,
+    "allowMainExecution": false,
+    "allowNetwork": false,
+    "allowedCommands": [
+      "corepack pnpm agents:doctor",
+      "corepack pnpm typecheck",
+      "corepack pnpm test",
+      "corepack pnpm build",
+      "git status",
+      "git diff",
+      "codex exec -"
+    ],
+    "allowCommands": [
+      "corepack pnpm agents:doctor",
+      "corepack pnpm typecheck",
+      "corepack pnpm test",
+      "corepack pnpm build",
+      "git status",
+      "git diff",
+      "codex exec -"
+    ],
+    "sensitiveFiles": [".env", ".env.*"]
   },
   "runs": {
     "directory": ".badock/runs",
