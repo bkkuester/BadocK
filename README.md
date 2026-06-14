@@ -89,10 +89,16 @@ corepack pnpm --filter @badock/cli badock health
 corepack pnpm --filter @badock/cli badock manifest validate .badock/project.json
 corepack pnpm --filter @badock/cli badock project scan .
 corepack pnpm --filter @badock/cli badock project profile .
+corepack pnpm --filter @badock/cli badock project profile save .badock/badock.sqlite <project-id> .
 corepack pnpm --filter @badock/cli badock storage init .badock/badock.sqlite
 corepack pnpm --filter @badock/cli badock provider register .badock/badock.sqlite --project <project-id> --id mock --type mock --default-model mock-planner
+corepack pnpm --filter @badock/cli badock provider list .badock/badock.sqlite --project <project-id>
 corepack pnpm --filter @badock/cli badock agent register .badock/badock.sqlite --project <project-id> --id backend-agent --role backend --provider mock --model mock-planner --permission manual
+corepack pnpm --filter @badock/cli badock agent list .badock/badock.sqlite --project <project-id>
 corepack pnpm --filter @badock/cli badock issue create .badock/badock.sqlite --project <project-id> --title <title> --objective <objective> --scope <scope> --agent <agent-id> --acceptance <criterion>
+corepack pnpm --filter @badock/cli badock issue list .badock/badock.sqlite
+corepack pnpm --filter @badock/cli badock issue view .badock/badock.sqlite <issue-id>
+corepack pnpm --filter @badock/cli badock issue update .badock/badock.sqlite <issue-id> --state planned
 corepack pnpm --filter @badock/cli badock plan create .badock/badock.sqlite <issue-id> --agent <agent-id>
 ```
 
@@ -110,7 +116,7 @@ GitHub Actions CI runs on push and pull request to `main`, installs with `pnpm i
 
 Provider secrets are not stored in the manifest or local provider registry. Agents select providers through the Provider Gateway, which exposes only public provider/model metadata and sanitized errors.
 
-The core now includes a generic local process runtime adapter and a Codex CLI execution path based on `codex exec -` with prompt via stdin. Runtime evidence is written under `.badock/runs/<run-id>/` and ignored by Git.
+The core now includes a generic local process runtime adapter and a Codex CLI execution path based on structured commands (`codex exec -`) with prompt via stdin. Runtime evidence is written under `.badock/runs/<run-id>/`, ignored by Git and sanitized before persistence.
 
 ## Directory Structure
 
