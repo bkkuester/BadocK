@@ -115,6 +115,47 @@ describe("runBadockCli", () => {
     assert.equal(JSON.parse(profile.output ?? "{}").packageManager, "npm");
   });
 
+  it("writes a project scan report for the BadocK workflow command", async () => {
+    const dir = tempDir();
+    mkdirSync(join(dir, ".badock"), { recursive: true });
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.5.2" }));
+    writeFileSync(join(dir, "pnpm-lock.yaml"), "");
+    writeFileSync(join(dir, "tsconfig.json"), "{}");
+    writeFileSync(join(dir, ".badock", "project.json"), JSON.stringify({ version: 1, project: { name: "Example" } }));
+
+    const result = await runBadockCli(["project", "scan-report", dir]);
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(JSON.parse(result.output ?? "{}").package.manager, "pnpm");
+  });
+
+  it("creates and validates markdown local issues through workflow commands", async () => {
+    const dir = tempDir();
+    const create = await runBadockCli([
+      "issue-file",
+      "new",
+      dir,
+      "--title",
+      "Review run",
+      "--objective",
+      "Review run diffs",
+      "--scope",
+      "Diff Review",
+      "--agent",
+      "ci-agent",
+      "--acceptance",
+      "Forbidden files are blocked"
+    ]);
+
+    assert.equal(create.exitCode, 0);
+    const issueId = JSON.parse(create.output ?? "{}").id;
+    const list = await runBadockCli(["issue-file", "list", dir]);
+    const validate = await runBadockCli(["issue-file", "validate", dir, issueId]);
+
+    assert.equal(JSON.parse(list.output ?? "[]").length, 1);
+    assert.equal(validate.exitCode, 0);
+  });
+
   it("creates, lists, views and updates local BadocK issues", async () => {
     const dbPath = join(tempDir(), ".badock", "badock.sqlite");
     const storage = createBadockStorage(dbPath);

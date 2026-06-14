@@ -1,17 +1,32 @@
 export const redactedValue = "[REDACTED]";
 
 export const sensitiveKeyPattern =
-  /(?:secret|token|api[-_]?key|access[-_]?key|password|credential|private[-_]?key|authorization|bearer)/i;
+  /(?:secret|token|key|api[-_]?key|access[-_]?key|password|credential|private[-_]?key|authorization|bearer)/i;
 
 const assignmentPattern =
-  /\b(secret|token|api[-_]?key|access[-_]?key|password|credential|private[-_]?key|authorization)\b\s*[:=]\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}]+)/gi;
+  /\b((?:[A-Za-z_][A-Za-z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|CREDENTIAL|AUTHORIZATION)[A-Za-z0-9_]*)|secret|token|key|password|credential|authorization|api[-_]?key|access[-_]?key|private[-_]?key)\b\s*[:=]\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}]+)/gi;
 const bearerPattern = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}\b/gi;
 const openAiKeyPattern = /\bsk-[A-Za-z0-9_-]{8,}\b/g;
 const githubClassicTokenPattern = /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}\b/g;
 const githubFineGrainedTokenPattern = /\bgithub_pat_[A-Za-z0-9_]{12,}\b/g;
 const slackTokenPattern = /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g;
+const nonSecretKeyNames = new Set([
+  "inputtokens",
+  "outputtokens",
+  "reasoningtokens",
+  "totaltokens",
+  "sensitivekeypattern",
+  "allowedsensitivepolicykeys",
+  "openapikeypattern",
+  "githubclassictokenpattern",
+  "githubfinegrainedtokenpattern",
+  "slacktokenpattern"
+]);
 
 export function isSensitiveKey(key: string): boolean {
+  if (nonSecretKeyNames.has(key.replace(/[^A-Za-z0-9]/g, "").toLowerCase())) {
+    return false;
+  }
   return sensitiveKeyPattern.test(key);
 }
 
@@ -26,7 +41,7 @@ export function sanitizeSensitiveText(text: string): string {
     .replace(githubFineGrainedTokenPattern, `github_pat_${redactedValue}`)
     .replace(githubClassicTokenPattern, (match) => `${match.split("_")[0]}_${redactedValue}`)
     .replace(slackTokenPattern, (match) => `${match.split("-")[0]}-${redactedValue}`)
-    .replace(assignmentPattern, (_match, key: string) => `${key}=${redactedValue}`);
+    .replace(assignmentPattern, (match, key: string) => (isSensitiveKey(key) ? `${key}=${redactedValue}` : match));
 }
 
 export function sanitizeForPublicOutput(value: unknown): unknown {

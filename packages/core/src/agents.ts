@@ -103,16 +103,7 @@ export function suggestAgentForIssue(input: SuggestAgentForIssueInput): AgentSel
     return agentToSelection(explicit, "suggested", "Issue suggested this agent");
   }
 
-  const text = `${input.issue.title} ${input.issue.objective} ${input.issue.scope.join(" ")}`.toLowerCase();
-  const preferredRoles = inferPreferredRoles(text, input.stackProfile);
-  for (const role of preferredRoles) {
-    const match = candidates.find((agent) => agent.role.toLowerCase().includes(role));
-    if (match) {
-      return agentToSelection(match, "suggested", `Suggested from issue content and ${role} role`);
-    }
-  }
-
-  return agentToSelection(candidates[0] as AgentProfile, "suggested", "Default editable agent suggestion");
+  return null;
 }
 
 export function normalizeAgentProfile(input: AgentProfile): AgentProfile {
@@ -162,22 +153,6 @@ function agentToSelection(agent: AgentProfile, source: AgentSelectionSource, rea
 
 function providerExists(agent: AgentProfile, providers: Array<Pick<ProviderPublicConfig, "id">>): boolean {
   return providers.some((provider) => provider.id === agent.providerId);
-}
-
-function inferPreferredRoles(
-  text: string,
-  stackProfile: Partial<Pick<StackProfile, "language" | "runtime" | "packageManager">> | undefined
-): string[] {
-  if (/security|seguran|secret|token|provider|permission|permiss/.test(text)) {
-    return ["security", "provider", "backend"];
-  }
-  if (/agent|team|orchestrat|run|plano|plan/.test(text)) {
-    return ["orchestration", "architecture", "backend"];
-  }
-  if (/stack|scanner|profile|typescript|javascript/.test(text) || stackProfile?.language === "typescript") {
-    return ["backend", "architecture", "stack"];
-  }
-  return ["backend", "architecture"];
 }
 
 function normalizeRequiredText(value: string, fieldName: string): string {

@@ -2,6 +2,51 @@
 
 ## 2026-06-13
 
+### Added - Remediation Gate + Run Report v0
+
+- Added Run Report v0 manifest fields for `schemaVersion`, `runId`, `targetIssues`, issue metadata, agent runtime/provider/model metadata, Git branch/worktree/commit metadata, final status, changed files, explicit cost availability and artifact map.
+- Added mandatory `traceability.md` generation alongside `summary.md`, `prompt.md`, `stdout.log`, `stderr.log`, `diff.patch` and `run.json`.
+- Added run artifact validation for required files, required manifest fields, final status checks, cost metadata, missing artifact detection and path traversal rejection.
+- Added `runs:smoke` and `runs:validate` scripts without adding dependencies.
+
+### Changed - Remediation Gate + Run Report v0
+
+- Hardened run artifact writes so reports are derived from `runId` and known artifact names under `.badock/runs/<runId>/`.
+- Expanded secret masking for common token/key/password assignments and GitHub/OpenAI-style token patterns before logs and reports are written.
+- Updated workflow commands to pass issue title, target issue metadata, base branch and validation notes into run reports.
+
+### Validation - Remediation Gate + Run Report v0
+
+- Added deterministic smoke coverage for required artifacts, manifest fields, secret masking, path traversal rejection, missing artifact detection, invalid status rejection and preservation of pre-existing worktree files.
+
+### Added - Core Operational Flow
+
+- Added `.badock/project.json` as the versioned BadocK project manifest with ADOC identity, stack, VCS, GitHub, agents, permissions, runs and cost policy.
+- Added root workflow scripts: `badock:scan`, `badock:issue:*`, `agents:doctor`, `agents:issue`, `agents:run`, `badock:review-run`, `badock:commit-run`, `badock:push-run` and `agents:pr`.
+- Added markdown local issue storage under `.badock/issues/`.
+- Added Worktree Manager primitives for deterministic issue/agent branch and worktree naming.
+- Added run artifact store under `.badock/runs/<run-id>/` with `run.json`, prompt, stdout/stderr, git status, diff and summary files.
+- Added deterministic Diff/Review Engine with forbidden artifact, env/secrets, workflow, lockfile, package manifest, scope and diff-size checks.
+- Added explicit unavailable-cost records so Codex CLI cost is not invented when token/cost data is unavailable.
+- Added partial GitHub helpers for gh availability, issue listing, issue publishing and PR creation from non-main branches.
+- Added Doctor v2 CLI checks for manifest, scripts, gitignore, branch, gh availability and manifest agents.
+
+### Changed - Core Operational Flow
+
+- Agent suggestion no longer falls back to free-form issue text heuristics. Selection requires explicit issue-suggested agents or manual selection.
+- `agents:run` prepares isolated worktree execution and evidence, but does not commit, push or open PR.
+- Real Codex CLI execution is opt-in with `--execute` and uses `codex exec -` with prompt via stdin.
+- `.badock/runs/**`, `.badock/reports/**` and `.agents/runs/**` are ignored by Git.
+- README and AGENTS now document the safe `run -> review -> commit -> push -> PR` sequence.
+
+### Validation - Core Operational Flow
+
+- Added tests for operational manifest parsing, helper normalization and no-secret policy exceptions for permission fields.
+- Added tests proving agent selection does not infer from free-form issue text.
+- Added tests for markdown issue creation/list/validation.
+- Added tests for deterministic worktree metadata, run manifest creation, unavailable cost records and review findings.
+- Added CLI tests for scan reports and markdown issue workflow commands.
+
 ### Added - Fase 0 Foundation Gate
 
 - Fase 0 foundation gate: added GitHub Actions CI for push and pull request to `main`, using pnpm, `pnpm install --frozen-lockfile` and `pnpm check`.

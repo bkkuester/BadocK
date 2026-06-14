@@ -186,6 +186,18 @@ Every run should produce a final report with:
 - blockers/risks;
 - PR URL or branch-ready status.
 
+Run Report v0 must persist these local artifacts under `.badock/runs/<run-id>/`:
+
+- `run.json`;
+- `prompt.md`;
+- `stdout.log`;
+- `stderr.log`;
+- `diff.patch`;
+- `summary.md`;
+- `traceability.md`.
+
+`summary.md` and `traceability.md` are required gates. If evidence is missing, the run must not be reported as `completed`.
+
 ## Documentation rule
 
 Document everything relevant in Notion:

@@ -19,6 +19,7 @@ import {
   scanProject
 } from "@badock/core";
 import { createBadockStorage, type AgentProfileRecord, type ProviderProfileRecord } from "@badock/storage";
+import { runWorkflowCli } from "./workflow";
 
 type CommandResult = {
   exitCode: number;
@@ -39,6 +40,11 @@ export async function runBadockCli(argv: string[]): Promise<CommandResult> {
 
   if (command === "health") {
     return { exitCode: 0, output: jsonOutput(getBadockHealth()) };
+  }
+
+  const workflowResult = await runWorkflowCli(argv);
+  if (workflowResult) {
+    return workflowResult;
   }
 
   if (command === "manifest" && subcommand === "validate") {
@@ -482,6 +488,7 @@ function usage(): string {
     "  badock health",
     "  badock version",
     "  badock project scan <project-path>",
+    "  badock project scan-report <project-path>",
     "  badock project profile <project-path>",
     "  badock project profile save <db-path> <project-id> <project-path>",
     "  badock manifest validate <path>",
@@ -496,7 +503,18 @@ function usage(): string {
     "  badock issue list <db-path> [--project <project-id>]",
     "  badock issue view <db-path> <issue-id>",
     "  badock issue update <db-path> <issue-id> [fields]",
-    "  badock plan create <db-path> <issue-id> [--agent <agent-id>]"
+    "  badock plan create <db-path> <issue-id> [--agent <agent-id>]",
+    "  badock doctor <project-path>",
+    "  badock issue-file new <project-path> [--title <title>] [--objective <text>] [--scope <item>] [--agent <id>] [--acceptance <item>]",
+    "  badock issue-file list <project-path>",
+    "  badock issue-file show <project-path> <local-issue-id>",
+    "  badock issue-file validate <project-path> <local-issue-id>",
+    "  badock agents issue <project-path> <local-issue-id>",
+    "  badock agents run <project-path> <agent> <local-issue-id> [--execute]",
+    "  badock review-run <project-path> <run-id>",
+    "  badock commit-run <project-path> <run-id>",
+    "  badock push-run <project-path> <run-id>",
+    "  badock agents pr <project-path> <agent> <local-issue-id> [--run <run-id>]"
   ].join("\n");
 }
 

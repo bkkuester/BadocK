@@ -4,20 +4,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
+  buildFindings,
+  buildWorktreeMetadata,
+  createLocalIssueFile,
   createStackProfile,
+  createUnavailableCostRecord,
   evaluatePermission,
   formatProcessCommand,
   generateRunPlan,
   getBadockHealth,
+  getRunArtifactPath,
+  listLocalIssueFiles,
   MemoryProviderSecretStore,
   normalizeLocalIssueInput,
   ProviderGateway,
   ProviderGatewayError,
+  readRunManifest,
   runLocalProcess,
   sanitizeForPublicOutput,
   sanitizeSensitiveText,
   selectAgentForRun,
-  scanProject
+  startRun,
+  suggestAgentForIssue,
+  scanProject,
+  validateRunReportArtifacts,
+  validateLocalIssueFile
 } from "./index";
 
 const tempDirs: string[] = [];
@@ -299,6 +310,53 @@ describe("local issue and run plan contracts", () => {
 
     assert.equal(plan.providerMetadata?.providerType, "unknown");
     assert.equal(plan.providerMetadata?.costTrackingReady, false);
+  });
+
+  it("does not infer agents from free-form issue text", () => {
+    const issue = normalizeLocalIssueInput({
+      title: "Fix CI and test scripts",
+      objective: "This text mentions CI, but no explicit agent was selected",
+      scope: ["Core"],
+      suggestedAgents: ["missing-agent"],
+      acceptanceCriteria: ["Selection remains explicit"]
+    });
+
+    const selection = suggestAgentForIssue({
+      issue,
+      agents: [
+        {
+          id: "ci-agent",
+          role: "ci",
+          providerId: "mock",
+          model: "mock-planner",
+          permissionMode: "manual",
+          capabilities: []
+        }
+      ],
+      providers: [{ id: "mock" }]
+    });
+
+    assert.equal(selection, null);
+  });
+
+  it("creates, lists and validates local markdown issue files", async () => {
+    const dir = tempDir();
+    const issue = await createLocalIssueFile(dir, {
+      title: "Implement review",
+      objective: "Review run diffs",
+      scope: ["Diff Review"],
+      suggestedAgents: ["ci-agent"],
+      acceptanceCriteria: ["Review detects forbidden files"],
+      files: ["packages/core/src/diff-review.ts"]
+    });
+
+    const list = await listLocalIssueFiles(dir);
+    const validation = await validateLocalIssueFile(dir, issue.id);
+
+    assert.equal(issue.id, "local-0001");
+    assert.equal(list.length, 1);
+    assert.equal(validation.valid, true);
+    assert.equal(validation.issue?.title, "Implement review");
   });
 });
 
@@ -646,6 +704,92 @@ describe("Agent Registry", () => {
           providers: [{ id: "mock" }]
         }),
       /unconfigured provider/
+    );
+  });
+});
+
+describe("BadocK run, worktree and review primitives", () => {
+  it("builds deterministic branch and worktree metadata", () => {
+    const metadata = buildWorktreeMetadata({
+      repoRoot: "C:/repo",
+      issueId: "local-0001",
+      agentName: "ci-agent",
+      baseBranch: "main"
+    });
+
+    assert.equal(metadata.branch, "agent/local-0001/ci-agent");
+    assert.match(metadata.worktreePath.replace(/\\/g, "/"), /worktrees\/issue-local-0001-ci-agent$/);
+    assert.equal(metadata.created, false);
+  });
+
+  it("creates run manifests with cost marked unavailable instead of invented", async () => {
+    const dir = tempDir();
+    const run = await startRun({
+      projectRoot: dir,
+      issueId: "local-0001",
+      issueSource: "local",
+      agent: "ci-agent",
+      branch: "agent/local-0001/ci-agent",
+      worktreePath: dir,
+      prompt: "Do work",
+      allowedFiles: ["packages/core/src/index.ts"]
+    });
+    const manifest = await readRunManifest(dir, run.id);
+
+    assert.equal(manifest.status, "running");
+    assert.equal(manifest.cost.source, "not_available");
+    assert.equal(manifest.cost.costUsd, null);
+    assert.equal(manifest.schemaVersion, 1);
+    assert.equal(manifest.runId, run.id);
+    assert.equal(Array.isArray(manifest.targetIssues), true);
+    assert.equal(Array.isArray(manifest.filesChanged), true);
+    assert.equal(typeof manifest.cost.estimated, "boolean");
+    assert.equal(manifest.artifacts.traceability, "traceability.md");
+    assert.throws(() => getRunArtifactPath(dir, "run-../escape", "run.json"), /Invalid run id/);
+    assert.throws(() => getRunArtifactPath(dir, run.id, "../run.json"), /Invalid run artifact name/);
+
+    const validation = await validateRunReportArtifacts(dir, run.id);
+    assert.equal(validation.valid, false);
+    assert.match(validation.errors.join("\n"), /status must be final/);
+  });
+
+  it("detects forbidden run artifacts and out-of-scope files in review findings", () => {
+    const findings = buildFindings(
+      {
+        id: "run-1",
+        summaryPath: ".badock/runs/run-1/summary.md",
+        allowedFiles: ["packages/core/src/index.ts"]
+      },
+      [".badock/runs/run-1/run.json", ".env", "README.md"],
+      "diff --git a/.env b/.env"
+    );
+
+    assert.match(findings.map((finding) => finding.code).join("\n"), /run_artifact_in_diff/);
+    assert.match(findings.map((finding) => finding.code).join("\n"), /sensitive_file_changed/);
+    assert.match(findings.map((finding) => finding.code).join("\n"), /file_out_of_scope/);
+  });
+
+  it("represents unavailable Codex CLI cost explicitly", () => {
+    assert.deepEqual(
+      createUnavailableCostRecord({
+        agent: "ci-agent",
+        issueId: "local-0001",
+        runId: "run-1",
+        provider: "codex-cli",
+        model: "unknown"
+      }),
+      {
+        provider: "codex-cli",
+        model: "unknown",
+        agent: "ci-agent",
+        issueId: "local-0001",
+        runId: "run-1",
+        inputTokens: null,
+        outputTokens: null,
+        costUsd: null,
+        estimated: false,
+        source: "not_available"
+      }
     );
   });
 });

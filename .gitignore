@@ -4,6 +4,9 @@ dist/
 coverage/
 .badock/*.sqlite
 .badock/*.sqlite-*
+.badock/runs/
+.badock/reports/
+.agents/runs/
 .env
 .env.*
 !.env.example

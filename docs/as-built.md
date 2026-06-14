@@ -1,5 +1,70 @@
 # As-Built
 
+## 2026-06-13 - Remediation Gate + Run Report v0
+
+Delivered scope:
+
+- Run Report v0 now persists the mandatory `.badock/runs/<run-id>/` artifact bundle: `run.json`, `prompt.md`, `stdout.log`, `stderr.log`, `diff.patch`, `summary.md` and `traceability.md`.
+- `run.json` now records `schemaVersion`, `runId`, `targetIssues`, issue metadata, agent runtime/provider/model metadata, Git branch/worktree/commit metadata, final status, changed files, cost availability and artifact names.
+- `summary.md` uses the required source availability, target issues, agent, Git, changed files, validation, cost, decision and next action sections.
+- `traceability.md` records target issues, coverage matrix, unresolved/risky items and final decision so runs cannot be marked complete without evidence.
+- Run artifact paths are derived from the validated `runId` and known artifact names, and writes are constrained to `.badock/runs/<run-id>/`.
+- Report text, logs and metadata are sanitized before persistence.
+- Root scripts `runs:smoke` and `runs:validate` validate the report contract without new dependencies.
+
+Design decisions:
+
+- The existing `packages/core/src/run-store.ts` and CLI workflow integration were reused instead of introducing a parallel scripts directory.
+- Runtime statuses still allow `planned` and `running` for in-progress records, while `runs:validate` requires a final report status: `completed`, `completed_with_warnings`, `failed` or `needs_user_decision`.
+- Cost remains explicit and non-invented: tokens and amount stay `null` when unavailable, with report notes stating that cost is estimated or unavailable for the runtime.
+
+Validation:
+
+- Smoke coverage checks required artifacts, manifest fields, secret masking, path traversal blocking, invalid final status rejection, missing artifact detection and preservation of a pre-existing worktree file.
+
+Known limitations:
+
+- The validator checks the local artifact contract; it does not authenticate GitHub or fetch remote issue/PR bodies.
+- Run Report v0 records cost availability, but exact provider token/cost metering remains future adapter work.
+
+## 2026-06-13 - Core Operational Flow
+
+Delivered scope:
+
+- The project now has a real versioned `.badock/project.json` manifest for BadocK as a local-first ADOC.
+- Root package scripts expose the operational flow: scan, local issue, plan, run, review, commit, push and PR.
+- Markdown local issues live under `.badock/issues/` and can be created, listed, shown and validated without GitHub.
+- The CLI can write deterministic project scan reports to `.badock/reports/project-scan.json`.
+- Worktree metadata and creation are centralized in `packages/core/src/worktree-manager.ts`.
+- Run evidence is centralized in `packages/core/src/run-store.ts` and written to `.badock/runs/<run-id>/`.
+- `agents:run` creates or reuses an issue/agent worktree and captures run evidence. It does not commit, push or open PR.
+- Codex CLI execution is opt-in with `--execute`; prompts are sent through stdin with `codex exec -`.
+- Diff review is deterministic and writes `review.json` plus `review.md`.
+- Commit, push and PR commands are separate and refuse main/master by default.
+- Cost for Codex CLI runs is recorded as `not_available` rather than estimated or invented.
+- GitHub Sync is partial and remains optional through gh CLI helpers.
+- Doctor v2 produces console checks and `.badock/reports/doctor.json`.
+
+Design decisions:
+
+- The existing monorepo layout was preserved. The old prompt referenced `scripts/*.ts`, but the real repo uses `apps/cli` and `packages/*`, so the core was implemented there instead of adding a parallel scripts tree.
+- `.badock/runs/**`, `.badock/reports/**` and `.agents/runs/**` are ignored because they are execution evidence, not product delivery.
+- `.badock/issues/.gitkeep` is versioned so the local issue store exists without committing generated issue drafts by default.
+- Agent selection is explicit. The previous free-text role inference was removed from `suggestAgentForIssue()`.
+- The CLI `typecheck` builds workspace package declarations before checking because this repo imports packages through their `dist` exports.
+
+Validation:
+
+- `corepack pnpm typecheck`
+- `corepack pnpm test`
+
+Known limitations:
+
+- `agents:run` without `--execute` intentionally stops at `needs_user_decision`.
+- Real Codex CLI execution depends on `codex` being installed and allowed in the user's environment.
+- GitHub issue/PR operations depend on gh CLI and authentication.
+- Cost remains unavailable for Codex CLI unless a future adapter can report tokens/costs.
+
 ## 2026-06-13 - Fase 0 Foundation Gate
 
 Related issues: #4, #6, #17, #22, #26, #27.
